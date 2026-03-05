@@ -12,6 +12,8 @@ const templateOptions: { id: TemplateId; name: string; subtitle: string }[] = [
   { id: 'counting-stars', name: 'Counting Stars', subtitle: '柔和粉色圆形频谱' },
   { id: 'pinky-pop', name: 'Pinky Pop', subtitle: '多层霓虹波形环' },
   { id: 'lucky-clover', name: 'Lucky Clover', subtitle: '荧光四叶草反应体' },
+  { id: 'petal-dance', name: 'Petal Dance', subtitle: '柔粉三瓣花形频谱' },
+  { id: 'stardust-sky', name: 'Stardust Sky', subtitle: '深蓝星空圆形频谱' },
 ]
 
 export default function Home() {

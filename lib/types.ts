@@ -1,4 +1,9 @@
-export type TemplateId = 'counting-stars' | 'pinky-pop' | 'lucky-clover'
+export type TemplateId =
+  | 'counting-stars'
+  | 'pinky-pop'
+  | 'lucky-clover'
+  | 'petal-dance'
+  | 'stardust-sky'
 
 export interface AudioData {
   frequencyData: Uint8Array
