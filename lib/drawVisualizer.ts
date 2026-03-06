@@ -329,7 +329,7 @@ function drawCountingStars(
 
 /* ═══════════════════════════════════════════════════════════════
    TEMPLATE 2: PINKY POP
-   Misty forest + fire corona around disc (solar eclipse look)
+   火焰日冕 + 雾森林
    ═══════════════════════════════════════════════════════════════ */
 function drawPinkyPop(
   ctx: CanvasRenderingContext2D,
@@ -339,37 +339,50 @@ function drawPinkyPop(
   state: DrawState,
   time: number,
 ) {
-  // Cool blue-gray misty sky
+  // 线性渐变天空：青灰 → 蓝灰雾 → 暗色
   const bg = ctx.createLinearGradient(0, 0, 0, h)
-  bg.addColorStop(0, '#5a6d7a')
-  bg.addColorStop(0.25, '#6b7f8c')
-  bg.addColorStop(0.5, '#8a9da8')
-  bg.addColorStop(0.7, '#b0c0c8')
-  bg.addColorStop(1, '#3a4a4f')
+  bg.addColorStop(0, '#4a6670')
+  bg.addColorStop(0.5, '#8a9ea6')
+  bg.addColorStop(1, '#2a3a3e')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
-  // Fog layers
-  for (let i = 0; i < 4; i++) {
-    const fy = h * (0.4 + i * 0.12)
-    const fg = ctx.createRadialGradient(w * (0.3 + i * 0.15), fy, 0, w * (0.3 + i * 0.15), fy, w * 0.5)
-    fg.addColorStop(0, `rgba(200,215,225,${0.2 - i * 0.03})`)
-    fg.addColorStop(1, 'rgba(200,215,225,0)')
-    ctx.fillStyle = fg
-    ctx.fillRect(0, 0, w, h)
+  // 中间层半透明雾气
+  const fogG = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, w * 0.6)
+  fogG.addColorStop(0, 'rgba(255,255,255,0.15)')
+  fogG.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = fogG
+  ctx.fillRect(0, 0, w, h)
+
+  // 底部 1/3 松树剪影（5-7棵）
+  const treeBase = h * 0.72
+  ctx.fillStyle = '#0a1a15'
+  const trees = [
+    { x: w * 0.05, tw: w * 0.07, th: h * 0.22 },
+    { x: w * 0.18, tw: w * 0.06, th: h * 0.26 },
+    { x: w * 0.33, tw: w * 0.08, th: h * 0.20 },
+    { x: w * 0.50, tw: w * 0.07, th: h * 0.28 },
+    { x: w * 0.65, tw: w * 0.06, th: h * 0.24 },
+    { x: w * 0.80, tw: w * 0.08, th: h * 0.21 },
+    { x: w * 0.93, tw: w * 0.07, th: h * 0.25 },
+  ]
+  for (const t of trees) {
+    ctx.beginPath()
+    ctx.moveTo(t.x - t.tw, treeBase)
+    ctx.bezierCurveTo(t.x - t.tw * 0.6, treeBase - t.th * 0.4, t.x - t.tw * 0.3, treeBase - t.th * 0.7, t.x, treeBase - t.th)
+    ctx.bezierCurveTo(t.x + t.tw * 0.3, treeBase - t.th * 0.7, t.x + t.tw * 0.6, treeBase - t.th * 0.4, t.x + t.tw, treeBase)
+    ctx.closePath()
+    ctx.fill()
   }
+  ctx.fillRect(0, treeBase, w, h - treeBase)
 
-  // Tree silhouettes
-  drawTreeSilhouettes(ctx, w, h)
-
-  // Particles (white bokeh/snow)
-  drawParticles(ctx, w, h, time, state, { boost: 0.6, color: [220, 230, 240], sizeScale: 1.2, twinkle: 0.4 })
+  drawParticles(ctx, w, h, time, state, { boost: 0.6, color: [255, 255, 255], sizeScale: 1.3, twinkle: 0.4 })
 
   const cx = w / 2
   const cy = h * 0.42
   const minDim = Math.min(w, h)
-  const discR = minDim * 0.13
-  const n = 128
+  const discR = minDim * 0.12
+  const n = 120
 
   if (audioData?.beat) state.pulseScale = 1.06
   state.pulseScale += (1 - state.pulseScale) * 0.1
@@ -378,62 +391,52 @@ function drawPinkyPop(
   smoothBars(state, audioData, n, 0.55, 0.1)
 
   const bass = audioData?.bass ?? 0
-  const volume = audioData?.volume ?? 0
 
-  // Fire corona effect - irregular flame spikes radiating from disc
+  // 火焰日冕 - 3层有机火焰
   ctx.save()
   ctx.translate(cx, cy)
   ctx.scale(state.pulseScale, state.pulseScale)
+  ctx.globalCompositeOperation = 'lighter'
 
-  const spikeCount = 180
-  // Draw multiple layers: outer red → mid orange → inner yellow-white
-  const coronaLayers = [
-    { maxLen: minDim * 0.16, color1: [180, 30, 10], color2: [120, 10, 5], alpha: 0.5, blur: 25 },
-    { maxLen: minDim * 0.12, color1: [255, 140, 20], color2: [220, 80, 10], alpha: 0.7, blur: 18 },
-    { maxLen: minDim * 0.08, color1: [255, 220, 80], color2: [255, 180, 40], alpha: 0.85, blur: 12 },
-    { maxLen: minDim * 0.04, color1: [255, 255, 200], color2: [255, 240, 160], alpha: 0.95, blur: 6 },
+  const flameLayers = [
+    { scale: 1.15, offset: 0.3, baseFlame: minDim * 0.04, waveH: minDim * 0.14 },
+    { scale: 1.05, offset: 0.7, baseFlame: minDim * 0.03, waveH: minDim * 0.11 },
+    { scale: 1.0,  offset: 0.0, baseFlame: minDim * 0.02, waveH: minDim * 0.08 },
   ]
 
-  for (const layer of coronaLayers) {
+  for (const layer of flameLayers) {
+    // 计算120个点的距离
+    const pts: { x: number; y: number }[] = []
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + layer.offset
+      const sample = state.smoothedBars[i]
+      const noise = Math.sin(a * 7 + time * 3.5) * 0.2 + Math.cos(a * 13 - time * 2.1) * 0.15 + Math.sin(a * 23 + time * 5.2) * 0.1
+      const dist = (discR + layer.baseFlame + sample * layer.waveH + bass * minDim * 0.03) * (1 + noise) * layer.scale
+      pts.push({ x: Math.cos(a) * dist, y: Math.sin(a) * dist })
+    }
+
+    // 用 quadraticCurveTo 连接
     ctx.beginPath()
-    for (let i = 0; i <= spikeCount; i++) {
-      const a = (i / spikeCount) * Math.PI * 2
-      const freqIdx = Math.floor((i / spikeCount) * n) % n
-      const sample = state.smoothedBars[freqIdx]
-      // Organic flame noise
-      const noise1 = Math.sin(a * 7 + time * 3.5) * 0.3
-      const noise2 = Math.cos(a * 13 - time * 2.1) * 0.2
-      const noise3 = Math.sin(a * 23 + time * 5.2) * 0.15
-      const flicker = 1 + noise1 + noise2 + noise3
-      const spikeLen = discR + (layer.maxLen * (0.3 + sample * 0.7 + bass * 0.3) * flicker)
-      const x = Math.cos(a) * spikeLen
-      const y = Math.sin(a) * spikeLen
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
+    ctx.moveTo(pts[0].x, pts[0].y)
+    for (let i = 0; i < n; i++) {
+      const next = pts[(i + 1) % n]
+      const cur = pts[i]
+      const midX = (cur.x + next.x) / 2
+      const midY = (cur.y + next.y) / 2
+      ctx.quadraticCurveTo(cur.x, cur.y, midX, midY)
     }
     ctx.closePath()
 
-    const grad = ctx.createRadialGradient(0, 0, discR, 0, 0, discR + layer.maxLen)
-    grad.addColorStop(0, `rgba(${layer.color1.join(',')},${layer.alpha})`)
-    grad.addColorStop(0.6, `rgba(${layer.color2.join(',')},${layer.alpha * 0.6})`)
-    grad.addColorStop(1, `rgba(${layer.color2.join(',')},0)`)
+    // 火焰颜色渐变
+    const grad = ctx.createRadialGradient(0, 0, discR * 0.9, 0, 0, discR + layer.waveH * 1.5)
+    grad.addColorStop(0, 'rgba(255,240,180,0.95)')
+    grad.addColorStop(0.4, 'rgba(255,160,50,0.85)')
+    grad.addColorStop(1, 'rgba(200,40,20,0.7)')
     ctx.fillStyle = grad
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.shadowColor = `rgba(${layer.color1.join(',')},0.8)`
-    ctx.shadowBlur = layer.blur
+    ctx.shadowColor = 'rgba(255,160,50,0.8)'
+    ctx.shadowBlur = 20
     ctx.fill()
   }
-
-  // Inner bright glow around disc edge
-  const innerGlow = ctx.createRadialGradient(0, 0, discR * 0.8, 0, 0, discR * 1.3)
-  innerGlow.addColorStop(0, 'rgba(255,255,220,0)')
-  innerGlow.addColorStop(0.5, `rgba(255,200,100,${0.3 + volume * 0.3})`)
-  innerGlow.addColorStop(1, 'rgba(255,100,20,0)')
-  ctx.fillStyle = innerGlow
-  ctx.globalCompositeOperation = 'lighter'
-  ctx.beginPath()
-  ctx.arc(0, 0, discR * 1.5, 0, Math.PI * 2)
-  ctx.fill()
 
   ctx.globalCompositeOperation = 'source-over'
   ctx.restore()
@@ -449,7 +452,7 @@ function drawPinkyPop(
 
 /* ═══════════════════════════════════════════════════════════════
    TEMPLATE 3: LUCKY CLOVER
-   Fantasy cliff sunset + white-cyan starburst spikes
+   白蓝星爆 + 悬崖夕阳
    ═══════════════════════════════════════════════════════════════ */
 function drawLuckyClover(
   ctx: CanvasRenderingContext2D,
@@ -459,31 +462,46 @@ function drawLuckyClover(
   state: DrawState,
   time: number,
 ) {
-  // Golden/amber sunset sky
+  // 线性渐变天空：深蓝 → 紫 → 金橙夕阳
   const bg = ctx.createLinearGradient(0, 0, 0, h)
-  bg.addColorStop(0, '#1a1535')
-  bg.addColorStop(0.3, '#2d2255')
-  bg.addColorStop(0.55, '#6a3a50')
-  bg.addColorStop(0.75, '#c87040')
-  bg.addColorStop(0.9, '#e8a050')
-  bg.addColorStop(1, '#1a1020')
+  bg.addColorStop(0, '#1a2040')
+  bg.addColorStop(0.5, '#4a3060')
+  bg.addColorStop(1, '#e8a040')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
-  // Sunset glow at horizon
-  const sunGlow = ctx.createRadialGradient(w * 0.5, h * 0.78, 0, w * 0.5, h * 0.78, w * 0.5)
-  sunGlow.addColorStop(0, 'rgba(255,200,100,0.4)')
-  sunGlow.addColorStop(0.5, 'rgba(255,150,60,0.15)')
-  sunGlow.addColorStop(1, 'rgba(255,150,60,0)')
+  // 地平线暖光
+  const sunGlow = ctx.createRadialGradient(w * 0.5, h * 0.85, 0, w * 0.5, h * 0.85, w * 0.5)
+  sunGlow.addColorStop(0, 'rgba(255,180,60,0.3)')
+  sunGlow.addColorStop(1, 'rgba(255,180,60,0)')
   ctx.fillStyle = sunGlow
   ctx.fillRect(0, 0, w, h)
 
-  // Cliff with figures
-  drawCliffWithFigures(ctx, w, h, 0.3, 0.65)
+  // 右侧悬崖剪影
+  ctx.fillStyle = '#0a0a15'
+  ctx.beginPath()
+  ctx.moveTo(w * 0.6, h)
+  ctx.lineTo(w * 0.6, h * 0.62)
+  ctx.lineTo(w * 0.65, h * 0.58)
+  ctx.lineTo(w * 0.72, h * 0.55)
+  ctx.lineTo(w * 0.78, h * 0.56)
+  ctx.lineTo(w * 0.82, h * 0.6)
+  ctx.lineTo(w * 0.85, h * 0.58)
+  ctx.lineTo(w * 0.9, h * 0.62)
+  ctx.lineTo(w, h * 0.7)
+  ctx.lineTo(w, h)
+  ctx.closePath()
+  ctx.fill()
 
-  // Dark ground
-  ctx.fillStyle = 'rgba(10,8,18,0.85)'
-  ctx.fillRect(0, h * 0.85, w, h * 0.15)
+  // 悬崖顶上2个小人影
+  const fy = h * 0.54
+  for (const fx of [w * 0.70, w * 0.74]) {
+    ctx.fillStyle = '#0a0a15'
+    ctx.beginPath()
+    ctx.arc(fx, fy - 6, 2.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillRect(fx - 1.5, fy - 4, 3, 8)
+  }
 
   drawParticles(ctx, w, h, time, state, { boost: 0.8, color: [200, 220, 255], sizeScale: 1.0, twinkle: 0.35 })
 
@@ -499,60 +517,40 @@ function drawLuckyClover(
 
   smoothBars(state, audioData, n, 0.6, 0.09)
 
-  const volume = audioData?.volume ?? 0
-
   ctx.save()
   ctx.translate(cx, cy)
   ctx.scale(state.pulseScale, state.pulseScale)
   ctx.rotate(state.rotation)
-
-  // Starburst spikes - white core to cyan/blue edges
-  const spikeCount = 128
-
-  // Outer blue glow halo
-  const haloGrad = ctx.createRadialGradient(0, 0, discR, 0, 0, discR + minDim * 0.2)
-  haloGrad.addColorStop(0, `rgba(80,180,255,${0.15 + volume * 0.2})`)
-  haloGrad.addColorStop(0.5, `rgba(50,120,255,${0.08 + volume * 0.1})`)
-  haloGrad.addColorStop(1, 'rgba(30,80,255,0)')
-  ctx.fillStyle = haloGrad
   ctx.globalCompositeOperation = 'lighter'
-  ctx.beginPath()
-  ctx.arc(0, 0, discR + minDim * 0.2, 0, Math.PI * 2)
-  ctx.fill()
 
-  // Draw spikes
+  // 128个尖刺星爆
+  const spikeCount = 128
+  const baseSpikeLen = minDim * 0.03
+  const maxSpikeLen = minDim * 0.15
+
   for (let i = 0; i < spikeCount; i++) {
     const a = (i / spikeCount) * Math.PI * 2
     const sample = state.smoothedBars[i % n]
-    const spikeLen = discR + minDim * 0.03 + sample * minDim * 0.15 + volume * minDim * 0.03
+    const spikeLen = discR + baseSpikeLen + sample * maxSpikeLen
     const tipX = Math.cos(a) * spikeLen
     const tipY = Math.sin(a) * spikeLen
-    const baseW = minDim * 0.004
+    const baseW = minDim * 0.003
     const perpA = a + Math.PI / 2
+    const bx = Math.cos(a) * (discR + 2)
+    const by = Math.sin(a) * (discR + 2)
 
     ctx.beginPath()
-    ctx.moveTo(Math.cos(a) * (discR + 2), Math.sin(a) * (discR + 2))
-    ctx.lineTo(
-      Math.cos(a) * (discR + 2) + Math.cos(perpA) * baseW,
-      Math.sin(a) * (discR + 2) + Math.sin(perpA) * baseW,
-    )
+    ctx.moveTo(bx + Math.cos(perpA) * baseW, by + Math.sin(perpA) * baseW)
     ctx.lineTo(tipX, tipY)
-    ctx.lineTo(
-      Math.cos(a) * (discR + 2) - Math.cos(perpA) * baseW,
-      Math.sin(a) * (discR + 2) - Math.sin(perpA) * baseW,
-    )
+    ctx.lineTo(bx - Math.cos(perpA) * baseW, by - Math.sin(perpA) * baseW)
     ctx.closePath()
 
-    const spikeGrad = ctx.createLinearGradient(
-      Math.cos(a) * discR, Math.sin(a) * discR,
-      tipX, tipY,
-    )
-    spikeGrad.addColorStop(0, `rgba(255,255,255,${0.7 + sample * 0.3})`)
-    spikeGrad.addColorStop(0.4, `rgba(150,220,255,${0.5 + sample * 0.3})`)
-    spikeGrad.addColorStop(1, `rgba(60,150,255,${0.1 + sample * 0.2})`)
+    const spikeGrad = ctx.createLinearGradient(bx, by, tipX, tipY)
+    spikeGrad.addColorStop(0, 'rgba(255,255,255,0.95)')
+    spikeGrad.addColorStop(1, 'rgba(100,200,255,0.7)')
     ctx.fillStyle = spikeGrad
-    ctx.shadowColor = 'rgba(100,180,255,0.6)'
-    ctx.shadowBlur = 8 + sample * 12
+    ctx.shadowColor = 'rgba(100,180,255,0.8)'
+    ctx.shadowBlur = 15
     ctx.fill()
   }
 
@@ -570,7 +568,7 @@ function drawLuckyClover(
 
 /* ═══════════════════════════════════════════════════════════════
    TEMPLATE 4: PETAL DANCE
-   Fantasy floating island + purple radial frequency bars
+   紫色径向频谱条 + 浮岛奇幻
    ═══════════════════════════════════════════════════════════════ */
 function drawPetalDance(
   ctx: CanvasRenderingContext2D,
@@ -580,45 +578,52 @@ function drawPetalDance(
   state: DrawState,
   time: number,
 ) {
-  // Purple-orange gradient sky
+  // 线性渐变天空：深紫 → 紫 → 暖棕橙 → 琥珀橙
   const bg = ctx.createLinearGradient(0, 0, 0, h)
-  bg.addColorStop(0, '#1a0a2e')
-  bg.addColorStop(0.25, '#2d1555')
-  bg.addColorStop(0.5, '#5a2060')
-  bg.addColorStop(0.7, '#8a4040')
-  bg.addColorStop(0.85, '#c87030')
-  bg.addColorStop(1, '#1a0a15')
+  bg.addColorStop(0, '#1a0a30')
+  bg.addColorStop(0.33, '#3a1560')
+  bg.addColorStop(0.66, '#804020')
+  bg.addColorStop(1, '#e08030')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
-  // Warm horizon glow
-  const horizonGlow = ctx.createRadialGradient(w * 0.5, h * 0.75, 0, w * 0.5, h * 0.75, w * 0.5)
-  horizonGlow.addColorStop(0, 'rgba(255,180,80,0.35)')
-  horizonGlow.addColorStop(0.5, 'rgba(200,100,60,0.1)')
-  horizonGlow.addColorStop(1, 'rgba(200,100,60,0)')
-  ctx.fillStyle = horizonGlow
-  ctx.fillRect(0, 0, w, h)
-
-  // Cloud wisps
+  // 天空中几缕云
   for (let i = 0; i < 3; i++) {
-    const cy2 = h * (0.3 + i * 0.15)
-    const cg = ctx.createRadialGradient(w * (0.3 + i * 0.2), cy2, 0, w * (0.3 + i * 0.2), cy2, w * 0.3)
-    cg.addColorStop(0, `rgba(120,60,100,${0.15 - i * 0.03})`)
-    cg.addColorStop(1, 'rgba(120,60,100,0)')
+    const cy2 = h * (0.2 + i * 0.12)
+    const cg = ctx.createRadialGradient(w * (0.25 + i * 0.22), cy2, 0, w * (0.25 + i * 0.22), cy2, w * 0.25)
+    cg.addColorStop(0, `rgba(200,150,180,${0.12 - i * 0.02})`)
+    cg.addColorStop(1, 'rgba(200,150,180,0)')
     ctx.fillStyle = cg
     ctx.fillRect(0, 0, w, h)
   }
 
-  // Floating island with figures
-  drawCliffWithFigures(ctx, w, h, 0.35, 0.68)
+  // 浮空岩石剪影（中下偏左）
+  ctx.fillStyle = '#0a0810'
+  ctx.beginPath()
+  ctx.moveTo(w * 0.15, h * 0.72)
+  ctx.bezierCurveTo(w * 0.18, h * 0.62, w * 0.25, h * 0.58, w * 0.32, h * 0.60)
+  ctx.bezierCurveTo(w * 0.38, h * 0.57, w * 0.42, h * 0.60, w * 0.45, h * 0.65)
+  ctx.bezierCurveTo(w * 0.43, h * 0.72, w * 0.35, h * 0.76, w * 0.25, h * 0.75)
+  ctx.closePath()
+  ctx.fill()
 
-  drawParticles(ctx, w, h, time, state, { boost: 0.7, color: [220, 200, 255], sizeScale: 1.1, twinkle: 0.4 })
+  // 岩石上2个人影
+  const fy2 = h * 0.56
+  for (const fx of [w * 0.30, w * 0.35]) {
+    ctx.fillStyle = '#0a0810'
+    ctx.beginPath()
+    ctx.arc(fx, fy2 - 6, 2.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillRect(fx - 1.5, fy2 - 4, 3, 8)
+  }
+
+  drawParticles(ctx, w, h, time, state, { boost: 0.7, color: [255, 255, 255], sizeScale: 1.1, twinkle: 0.4 })
 
   const cx = w / 2
   const cy = h * 0.4
   const minDim = Math.min(w, h)
   const discR = minDim * 0.12
-  const n = 128
+  const n = 64
 
   if (audioData?.beat) state.pulseScale = 1.05
   state.pulseScale += (1 - state.pulseScale) * 0.1
@@ -626,57 +631,30 @@ function drawPetalDance(
 
   smoothBars(state, audioData, n, 0.55, 0.1)
 
-  const volume = audioData?.volume ?? 0
-
   ctx.save()
   ctx.translate(cx, cy)
   ctx.scale(state.pulseScale, state.pulseScale)
   ctx.rotate(state.rotation)
-
-  // Purple radial glow
-  const purpleGlow = ctx.createRadialGradient(0, 0, discR, 0, 0, discR + minDim * 0.18)
-  purpleGlow.addColorStop(0, `rgba(180,80,255,${0.2 + volume * 0.15})`)
-  purpleGlow.addColorStop(0.5, `rgba(140,40,200,${0.08 + volume * 0.08})`)
-  purpleGlow.addColorStop(1, 'rgba(100,20,180,0)')
-  ctx.fillStyle = purpleGlow
   ctx.globalCompositeOperation = 'lighter'
-  ctx.beginPath()
-  ctx.arc(0, 0, discR + minDim * 0.18, 0, Math.PI * 2)
-  ctx.fill()
 
-  // Radial frequency bars
-  const barCount = 96
-  const barWidth = (Math.PI * 2 * (discR + 4)) / barCount * 0.55
+  // 64根径向频谱条
+  const barCount = 64
+  const ringR = discR + 4
   const maxBarLen = minDim * 0.14
 
   for (let i = 0; i < barCount; i++) {
     const a = (i / barCount) * Math.PI * 2
-    const freqIdx = Math.floor((i / barCount) * n) % n
-    const sample = state.smoothedBars[freqIdx]
-    const barLen = minDim * 0.01 + sample * maxBarLen
+    const sample = state.smoothedBars[i]
+    const barLen = sample * maxBarLen + minDim * 0.005
+    const barWidth = (2 * Math.PI * ringR / barCount) * 0.7
 
-    const innerR = discR + 4
-    const outerR = innerR + barLen
-
-    const x1 = Math.cos(a) * innerR
-    const y1 = Math.sin(a) * innerR
-    const x2 = Math.cos(a) * outerR
-    const y2 = Math.sin(a) * outerR
-
-    const barGrad = ctx.createLinearGradient(x1, y1, x2, y2)
-    barGrad.addColorStop(0, `rgba(200,120,255,${0.7 + sample * 0.3})`)
-    barGrad.addColorStop(0.5, `rgba(160,60,220,${0.5 + sample * 0.3})`)
-    barGrad.addColorStop(1, `rgba(120,30,180,${0.2 + sample * 0.2})`)
-
-    ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.strokeStyle = barGrad
-    ctx.lineWidth = barWidth
-    ctx.lineCap = 'round'
-    ctx.shadowColor = `rgba(180,80,255,${0.5 + sample * 0.5})`
-    ctx.shadowBlur = 6 + sample * 10
-    ctx.stroke()
+    ctx.save()
+    ctx.rotate(a)
+    ctx.fillStyle = 'rgba(180,80,220,0.9)'
+    ctx.shadowColor = 'rgba(200,100,255,0.7)'
+    ctx.shadowBlur = 12
+    ctx.fillRect(ringR, -barWidth / 2, barLen, barWidth)
+    ctx.restore()
   }
 
   ctx.globalCompositeOperation = 'source-over'
@@ -693,7 +671,7 @@ function drawPetalDance(
 
 /* ═══════════════════════════════════════════════════════════════
    TEMPLATE 5: STARDUST SKY
-   Cyberpunk cityscape + pulsing glow ring on disc
+   赛博朋克城市 + 脉冲光环
    ═══════════════════════════════════════════════════════════════ */
 function drawStardustSky(
   ctx: CanvasRenderingContext2D,
@@ -703,96 +681,121 @@ function drawStardustSky(
   state: DrawState,
   time: number,
 ) {
-  // Deep blue-navy cyberpunk sky
+  // 极暗蓝黑 → 深蓝海军
   const bg = ctx.createLinearGradient(0, 0, 0, h)
-  bg.addColorStop(0, '#050a1a')
-  bg.addColorStop(0.3, '#0a1530')
-  bg.addColorStop(0.6, '#0d1a3a')
-  bg.addColorStop(1, '#080e20')
+  bg.addColorStop(0, '#050815')
+  bg.addColorStop(1, '#0a1525')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
-  // Atmospheric haze
-  const haze = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.6)
-  haze.addColorStop(0, 'rgba(0,100,150,0.12)')
-  haze.addColorStop(1, 'rgba(0,50,100,0)')
-  ctx.fillStyle = haze
-  ctx.fillRect(0, 0, w, h)
+  // 建筑群 - 透视效果：向中心收窄
+  const vanishX = w * 0.5
+  const leftBuildings = [
+    { x: 0, bw: w * 0.10, bh: h * 0.70 },
+    { x: w * 0.08, bw: w * 0.09, bh: h * 0.55 },
+    { x: w * 0.16, bw: w * 0.08, bh: h * 0.80 },
+    { x: w * 0.23, bw: w * 0.06, bh: h * 0.50 },
+  ]
+  const rightBuildings = [
+    { x: w * 0.65, bw: w * 0.07, bh: h * 0.55 },
+    { x: w * 0.71, bw: w * 0.10, bh: h * 0.75 },
+    { x: w * 0.80, bw: w * 0.08, bh: h * 0.60 },
+    { x: w * 0.87, bw: w * 0.13, bh: h * 0.85 },
+  ]
+  const allBuildings = [...leftBuildings, ...rightBuildings]
 
-  // Cyberpunk buildings
-  drawCyberpunkCity(ctx, w, h, time)
+  // Use deterministic seed based on building index for windows
+  for (let bi = 0; bi < allBuildings.length; bi++) {
+    const b = allBuildings[bi]
+    const by = h - b.bh
+    // 透视：左侧楼右边界向中心倾斜，右侧楼左边界向中心倾斜
+    const isLeft = b.x + b.bw / 2 < vanishX
+    const skew = isLeft ? (vanishX - (b.x + b.bw)) * 0.02 : ((b.x) - vanishX) * -0.02
 
-  // Particles (small sparkles)
+    ctx.fillStyle = '#0a0f1a'
+    ctx.beginPath()
+    ctx.moveTo(b.x, h)
+    ctx.lineTo(b.x + skew, by)
+    ctx.lineTo(b.x + b.bw + skew, by)
+    ctx.lineTo(b.x + b.bw, h)
+    ctx.closePath()
+    ctx.fill()
+
+    // 霓虹灯带
+    const neonColors = ['rgba(0,220,255,0.6)', 'rgba(255,50,180,0.5)']
+    for (let j = 0; j < 3; j++) {
+      const ny = by + b.bh * (0.2 + j * 0.3)
+      ctx.fillStyle = neonColors[j % 2]
+      ctx.fillRect(b.x + 2, ny, b.bw - 4, 1.5)
+    }
+
+    // 小方块灯（用确定性伪随机）
+    for (let wy = by + 8; wy < h - 8; wy += 14) {
+      for (let wx = b.x + 4; wx < b.x + b.bw - 4; wx += 9) {
+        const seed = (bi * 1000 + wy * 31 + wx * 17) % 100
+        if (seed > 45) {
+          ctx.fillStyle = seed % 2 === 0 ? 'rgba(0,180,255,0.15)' : 'rgba(255,50,180,0.1)'
+          ctx.fillRect(wx, wy, 3, 2.5)
+        }
+      }
+    }
+  }
+
+  // 左侧垂直粉色霓虹光柱
+  ctx.save()
+  ctx.shadowColor = 'rgba(255,50,180,0.6)'
+  ctx.shadowBlur = 20
+  ctx.fillStyle = 'rgba(255,50,180,0.4)'
+  ctx.fillRect(w * 0.14, h * 0.1, w * 0.015, h * 0.7)
+  ctx.restore()
+
+  // 底部地面反光
+  const groundGrad = ctx.createLinearGradient(0, h * 0.85, 0, h)
+  groundGrad.addColorStop(0, 'rgba(0,100,150,0.15)')
+  groundGrad.addColorStop(1, 'rgba(0,50,80,0)')
+  ctx.fillStyle = groundGrad
+  ctx.fillRect(0, h * 0.85, w, h * 0.15)
+
   drawParticles(ctx, w, h, time, state, { boost: 0.5, color: [100, 200, 255], sizeScale: 0.8, twinkle: 0.5 })
 
   const cx = w / 2
   const cy = h * 0.42
   const minDim = Math.min(w, h)
-  const discR = minDim * 0.13
+  const discR = minDim * 0.14
   const n = 128
 
-  if (audioData?.beat) state.pulseScale = 1.04
+  if (audioData?.beat) state.pulseScale = 1.08
   state.pulseScale += (1 - state.pulseScale) * 0.1
   state.rotation += 0.001
 
   smoothBars(state, audioData, n, 0.5, 0.1)
 
-  const volume = audioData?.volume ?? 0
   const bass = audioData?.bass ?? 0
 
   ctx.save()
   ctx.translate(cx, cy)
   ctx.scale(state.pulseScale, state.pulseScale)
-
-  // Pulsing cyan ring around disc
-  const ringWidth = minDim * 0.008 + bass * minDim * 0.015
-  const ringR2 = discR + minDim * 0.02 + volume * minDim * 0.02
-
-  // Outer glow
-  const outerGlow = ctx.createRadialGradient(0, 0, discR, 0, 0, discR + minDim * 0.12)
-  outerGlow.addColorStop(0, `rgba(0,200,255,${0.15 + volume * 0.2})`)
-  outerGlow.addColorStop(0.4, `rgba(0,120,200,${0.06 + volume * 0.08})`)
-  outerGlow.addColorStop(1, 'rgba(0,80,160,0)')
-  ctx.fillStyle = outerGlow
   ctx.globalCompositeOperation = 'lighter'
-  ctx.beginPath()
-  ctx.arc(0, 0, discR + minDim * 0.12, 0, Math.PI * 2)
-  ctx.fill()
 
-  // Subtle radial spikes (less prominent than other templates)
-  const spikeCount = 64
-  for (let i = 0; i < spikeCount; i++) {
-    const a = (i / spikeCount) * Math.PI * 2
-    const freqIdx = Math.floor((i / spikeCount) * n) % n
-    const sample = state.smoothedBars[freqIdx]
-    const sLen = discR + minDim * 0.015 + sample * minDim * 0.06
+  // 脉冲光环 - 霓虹青
+  const ringR2 = discR + minDim * 0.02
+  const ringWidth = minDim * 0.008 + bass * 8
 
-    ctx.beginPath()
-    ctx.moveTo(Math.cos(a) * (discR + 2), Math.sin(a) * (discR + 2))
-    ctx.lineTo(Math.cos(a) * sLen, Math.sin(a) * sLen)
-    ctx.strokeStyle = `rgba(0,200,255,${0.2 + sample * 0.5})`
-    ctx.lineWidth = minDim * 0.003
-    ctx.shadowColor = 'rgba(0,180,255,0.6)'
-    ctx.shadowBlur = 6 + sample * 8
-    ctx.stroke()
-  }
-
-  // Bright ring
   ctx.beginPath()
   ctx.arc(0, 0, ringR2, 0, Math.PI * 2)
-  ctx.strokeStyle = `rgba(0,220,255,${0.5 + bass * 0.4})`
+  ctx.strokeStyle = 'rgba(0,200,255,0.7)'
   ctx.lineWidth = ringWidth
-  ctx.shadowColor = 'rgba(0,200,255,0.8)'
-  ctx.shadowBlur = 15 + bass * 15
+  ctx.shadowColor = 'rgba(0,180,255,0.9)'
+  ctx.shadowBlur = 20 + bass * 15
   ctx.stroke()
 
-  // Pink accent ring
+  // 外层粉色淡环
   ctx.beginPath()
-  ctx.arc(0, 0, ringR2 + minDim * 0.008, 0, Math.PI * 2)
-  ctx.strokeStyle = `rgba(255,0,120,${0.15 + volume * 0.15})`
-  ctx.lineWidth = minDim * 0.003
-  ctx.shadowColor = 'rgba(255,0,120,0.5)'
-  ctx.shadowBlur = 8
+  ctx.arc(0, 0, ringR2 + minDim * 0.015, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(255,50,180,0.3)'
+  ctx.lineWidth = minDim * 0.004
+  ctx.shadowColor = 'rgba(255,50,180,0.5)'
+  ctx.shadowBlur = 10
   ctx.stroke()
 
   ctx.globalCompositeOperation = 'source-over'
