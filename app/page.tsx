@@ -10,11 +10,12 @@ const AudioUploader = dynamic(() => import('@/components/AudioUploader'), { ssr:
 
 const templateOptions: { id: TemplateId; name: string; subtitle: string; referenceVideo?: string }[] = [
   { id: 'counting-stars', name: 'Counting Stars', subtitle: '柔和粉色圆点频谱', referenceVideo: '/videos/counting-stars.mp4' },
-  { id: 'inferno', name: 'Inferno', subtitle: '火焰粒子频谱', referenceVideo: '/videos/lucky-clover.mp4' },
+  { id: 'inferno', name: 'Inferno', subtitle: '火焰粒子频谱' },
   { id: 'power-orb', name: 'Power Orb', subtitle: '能量球电光脉冲' },
   { id: 'techscape', name: 'Techscape', subtitle: '科技风条形频谱' },
   { id: 'synthwave', name: 'Synthwave', subtitle: '赛博朋克霓虹' },
   { id: 'chromatic', name: 'Chromatic', subtitle: '彩虹渐变频谱' },
+  { id: 'lucky-clover', name: 'Lucky Clover', subtitle: '绿色光晕有机脉动', referenceVideo: '/videos/lucky-clover.mp4' },
 ]
 
 export default function Home() {

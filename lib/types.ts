@@ -5,6 +5,7 @@ export type TemplateId =
   | 'techscape'
   | 'synthwave'
   | 'chromatic'
+  | 'lucky-clover'
 
 export interface AudioData {
   frequencyData: Uint8Array

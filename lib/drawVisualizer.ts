@@ -773,6 +773,165 @@ function drawChromatic(
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   LUCKY CLOVER — green blob glow, underwater cavern background
+   ═══════════════════════════════════════════════════════════════ */
+
+function drawLuckyClover(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  audioData: AudioData | null,
+  state: DrawState,
+  time: number,
+) {
+  // --- dark teal/cavern background ---
+  const bg = ctx.createRadialGradient(w * 0.5, h * 0.42, 0, w * 0.5, h * 0.42, Math.max(w, h) * 0.75)
+  bg.addColorStop(0, '#0d3b3b')
+  bg.addColorStop(0.35, '#0a2e2e')
+  bg.addColorStop(0.7, '#071e1e')
+  bg.addColorStop(1, '#020a0a')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, w, h)
+
+  // cavern rock edges
+  const rockAlpha = 0.35
+  ctx.fillStyle = `rgba(8,18,18,${rockAlpha})`
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(w * 0.15, h * 0.4, 0, h)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(w, 0)
+  ctx.quadraticCurveTo(w * 0.85, h * 0.4, w, h)
+  ctx.fill()
+
+  // misty fog
+  const fog = ctx.createRadialGradient(w * 0.5, h * 0.18, 0, w * 0.5, h * 0.18, w * 0.35)
+  fog.addColorStop(0, 'rgba(180,210,210,0.12)')
+  fog.addColorStop(1, 'rgba(180,210,210,0)')
+  ctx.fillStyle = fog
+  ctx.fillRect(0, 0, w, h)
+
+  // particles — teal/cyan speckles
+  drawParticles(ctx, w, h, time, state, { boost: 0.6, color: [140, 230, 220], twinkle: 0.5 })
+
+  const cx = w / 2
+  const cy = h * 0.42
+  const minDim = Math.min(w, h)
+  const discR = minDim * 0.12
+
+  if (audioData?.beat) state.pulseScale = 1.06
+  state.pulseScale += (1 - state.pulseScale) * 0.07
+
+  // smooth 64 radial samples for blob shape
+  const blobN = 64
+  smoothBars(state, audioData, blobN, 0.5, 0.06)
+
+  // compute blob radii using noise-like smoothing
+  const radii: number[] = []
+  for (let i = 0; i < blobN; i++) {
+    const v = state.smoothedBars[i] || 0
+    // blend neighbours for organic softness
+    const prev = state.smoothedBars[(i - 1 + blobN) % blobN] || 0
+    const next = state.smoothedBars[(i + 1) % blobN] || 0
+    const blended = prev * 0.25 + v * 0.5 + next * 0.25
+    const r = discR * 1.15 + Math.pow(blended, 0.8) * minDim * 0.22
+    radii.push(r * state.pulseScale)
+  }
+
+  ctx.save()
+  ctx.translate(cx, cy)
+
+  // --- outer soft glow layer ---
+  for (let pass = 3; pass >= 0; pass--) {
+    const scale = 1 + pass * 0.12
+    const alpha = 0.06 - pass * 0.012
+    ctx.save()
+    ctx.scale(scale, scale)
+    ctx.beginPath()
+    for (let i = 0; i <= blobN; i++) {
+      const idx = i % blobN
+      const a = (idx / blobN) * Math.PI * 2 - Math.PI / 2
+      const r = radii[idx]
+      const x = Math.cos(a) * r
+      const y = Math.sin(a) * r
+      if (i === 0) ctx.moveTo(x, y)
+      else {
+        const prevIdx = (idx - 1 + blobN) % blobN
+        const prevA = (prevIdx / blobN) * Math.PI * 2 - Math.PI / 2
+        const cpR = (radii[prevIdx] + r) / 2
+        const midA = (prevA + a) / 2
+        ctx.quadraticCurveTo(
+          Math.cos(prevA) * radii[prevIdx],
+          Math.sin(prevA) * radii[prevIdx],
+          Math.cos(midA) * cpR,
+          Math.sin(midA) * cpR,
+        )
+      }
+    }
+    ctx.closePath()
+    ctx.fillStyle = `rgba(0,255,65,${alpha})`
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // --- main green blob ---
+  ctx.beginPath()
+  for (let i = 0; i <= blobN; i++) {
+    const idx = i % blobN
+    const a = (idx / blobN) * Math.PI * 2 - Math.PI / 2
+    const r = radii[idx]
+    const x = Math.cos(a) * r
+    const y = Math.sin(a) * r
+    if (i === 0) ctx.moveTo(x, y)
+    else {
+      // smooth Catmull-Rom-ish curve via quadratic bezier
+      const prevIdx = (idx - 1 + blobN) % blobN
+      const prevA = (prevIdx / blobN) * Math.PI * 2 - Math.PI / 2
+      const cpR = (radii[prevIdx] + r) / 2
+      const midA = (prevA + a) / 2
+      ctx.quadraticCurveTo(
+        Math.cos(prevA) * radii[prevIdx],
+        Math.sin(prevA) * radii[prevIdx],
+        Math.cos(midA) * cpR,
+        Math.sin(midA) * cpR,
+      )
+    }
+  }
+  ctx.closePath()
+
+  // gradient fill: white-green core → electric green → teal edge
+  const blobGrad = ctx.createRadialGradient(0, 0, discR * 0.8, 0, 0, minDim * 0.28)
+  blobGrad.addColorStop(0, 'rgba(200,255,200,0.9)')
+  blobGrad.addColorStop(0.3, 'rgba(57,255,20,0.7)')
+  blobGrad.addColorStop(0.6, 'rgba(0,255,65,0.45)')
+  blobGrad.addColorStop(1, 'rgba(0,180,80,0.08)')
+  ctx.fillStyle = blobGrad
+  ctx.shadowColor = '#00ff41'
+  ctx.shadowBlur = 40
+  ctx.fill()
+
+  // inner bright ring
+  ctx.shadowBlur = 25
+  ctx.shadowColor = '#7fff00'
+  ctx.strokeStyle = 'rgba(127,255,0,0.35)'
+  ctx.lineWidth = minDim * 0.006
+  ctx.stroke()
+  ctx.shadowBlur = 0
+
+  ctx.restore()
+
+  // centre disc
+  drawCenterDisc(ctx, cx, cy, discR, {
+    fill: 'rgba(0,0,0,0.92)',
+    stroke: 'rgba(255,255,255,0.18)',
+    glow: 'rgba(0,255,65,0.45)',
+    glowBlur: 28,
+    lineWidth: 2,
+  })
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN ENTRY POINT
    ═══════════════════════════════════════════════════════════════ */
 export function drawFrame(
@@ -797,7 +956,9 @@ export function drawFrame(
             ? 70
             : template === 'chromatic'
               ? 24
-              : 90
+              : template === 'lucky-clover'
+                ? 60
+                : 90
 
   if (!state.initialized || state.particles.length !== targetParticles) {
     state.particles = initParticles(w, h, targetParticles)
@@ -811,6 +972,7 @@ export function drawFrame(
   else if (template === 'techscape') drawTechscape(ctx, w, h, audioData, state, time)
   else if (template === 'synthwave') drawSynthwave(ctx, w, h, audioData, state, time)
   else if (template === 'chromatic') drawChromatic(ctx, w, h, audioData, state, time)
+  else if (template === 'lucky-clover') drawLuckyClover(ctx, w, h, audioData, state, time)
   else drawCountingStars(ctx, w, h, audioData, state, time)
 
   const tcx = w / 2
