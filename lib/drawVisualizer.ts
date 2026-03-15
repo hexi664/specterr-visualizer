@@ -946,19 +946,9 @@ export function drawFrame(
   template: TemplateId,
 ) {
   const targetParticles =
-    template === 'inferno'
-      ? 180
-      : template === 'power-orb'
-        ? 130
-        : template === 'techscape'
-          ? 40
-          : template === 'synthwave'
-            ? 70
-            : template === 'chromatic'
-              ? 24
-              : template === 'lucky-clover'
-                ? 60
-                : 90
+    template === 'lucky-clover'
+      ? 60
+      : 90
 
   if (!state.initialized || state.particles.length !== targetParticles) {
     state.particles = initParticles(w, h, targetParticles)
@@ -967,12 +957,7 @@ export function drawFrame(
     state.initialized = true
   }
 
-  if (template === 'inferno') drawInferno(ctx, w, h, audioData, state, time)
-  else if (template === 'power-orb') drawPowerOrb(ctx, w, h, audioData, state, time)
-  else if (template === 'techscape') drawTechscape(ctx, w, h, audioData, state, time)
-  else if (template === 'synthwave') drawSynthwave(ctx, w, h, audioData, state, time)
-  else if (template === 'chromatic') drawChromatic(ctx, w, h, audioData, state, time)
-  else if (template === 'lucky-clover') drawLuckyClover(ctx, w, h, audioData, state, time)
+  if (template === 'lucky-clover') drawLuckyClover(ctx, w, h, audioData, state, time)
   else drawCountingStars(ctx, w, h, audioData, state, time)
 
   const tcx = w / 2
@@ -980,16 +965,12 @@ export function drawFrame(
   ctx.shadowColor = 'rgba(0,0,0,0.35)'
   ctx.shadowBlur = 10
   ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.font = template === 'techscape'
-    ? '600 12px ui-monospace, SFMono-Regular, Menlo, monospace'
-    : '600 12px -apple-system, BlinkMacSystemFont, sans-serif'
+  ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif'
   ctx.letterSpacing = '2px'
   ctx.fillText(artistName.toUpperCase(), tcx, h * 0.76)
 
   ctx.fillStyle = 'rgba(255,255,255,0.95)'
-  ctx.font = template === 'techscape'
-    ? '300 28px ui-monospace, SFMono-Regular, Menlo, monospace'
-    : '300 28px -apple-system, BlinkMacSystemFont, sans-serif'
+  ctx.font = '300 28px -apple-system, BlinkMacSystemFont, sans-serif'
   ctx.letterSpacing = '0px'
   ctx.shadowColor = 'rgba(0,0,0,0.2)'
   ctx.shadowBlur = 12

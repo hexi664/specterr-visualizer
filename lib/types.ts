@@ -1,10 +1,5 @@
 export type TemplateId =
   | 'counting-stars'
-  | 'inferno'
-  | 'power-orb'
-  | 'techscape'
-  | 'synthwave'
-  | 'chromatic'
   | 'lucky-clover'
 
 export interface AudioData {
