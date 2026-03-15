@@ -1,6 +1,14 @@
 export type TemplateId =
   | 'counting-stars'
   | 'lucky-clover'
+  | 'range-of-fire'
+  | 'snowflake'
+  | 'pinky-pop'
+  | 'seven-suns'
+  | 'chromatic'
+  | 'jungle-cat'
+  | 'prismatic'
+  | 'datascape'
 
 export interface AudioData {
   frequencyData: Uint8Array

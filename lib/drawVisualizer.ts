@@ -932,6 +932,546 @@ function drawLuckyClover(
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   RANGE OF FIRE — flame spectrum over teal mountains
+   ═══════════════════════════════════════════════════════════════ */
+function drawRangeOfFire(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Teal mountain background
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, h)
+  skyGrad.addColorStop(0, '#0a3d3d')
+  skyGrad.addColorStop(0.5, '#0d4f4a')
+  skyGrad.addColorStop(1, '#061a1a')
+  ctx.fillStyle = skyGrad
+  ctx.fillRect(0, 0, w, h)
+
+  // Mountain silhouettes
+  const mountainY = h * 0.45
+  ctx.fillStyle = '#072e2e'
+  ctx.beginPath()
+  ctx.moveTo(0, h)
+  ctx.lineTo(0, mountainY + 60)
+  ctx.lineTo(w * 0.15, mountainY + 20)
+  ctx.lineTo(w * 0.3, mountainY + 50)
+  ctx.lineTo(w * 0.45, mountainY - 10)
+  ctx.lineTo(w * 0.5, mountainY - 40)
+  ctx.lineTo(w * 0.55, mountainY - 10)
+  ctx.lineTo(w * 0.7, mountainY + 30)
+  ctx.lineTo(w * 0.85, mountainY + 10)
+  ctx.lineTo(w, mountainY + 40)
+  ctx.lineTo(w, h)
+  ctx.fill()
+
+  // Snow cap
+  ctx.fillStyle = 'rgba(200,220,230,0.3)'
+  ctx.beginPath()
+  ctx.moveTo(w * 0.45, mountainY - 10)
+  ctx.lineTo(w * 0.5, mountainY - 40)
+  ctx.lineTo(w * 0.55, mountainY - 10)
+  ctx.fill()
+
+  // Bokeh particles
+  for (let i = 0; i < 40; i++) {
+    const px = (Math.sin(i * 7.3 + time * 0.0002) * 0.5 + 0.5) * w
+    const py = (Math.cos(i * 5.1 + time * 0.0003) * 0.5 + 0.5) * h
+    const r = 1 + Math.sin(i * 3.7 + time * 0.001) * 1.5
+    ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.sin(i * 2.3 + time * 0.002) * 0.1})`
+    ctx.beginPath()
+    ctx.arc(px, py, Math.abs(r), 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Fire spectrum bars
+  const bass = audioData?.bass ?? 0.3
+  const freq = audioData?.frequencyData
+  const barCount = 15
+  const baselineY = h * 0.5
+  const barWidth = w * 0.6 / barCount
+  const startX = w * 0.2
+
+  // Baseline
+  ctx.strokeStyle = 'rgba(255,140,0,0.6)'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(w * 0.1, baselineY)
+  ctx.lineTo(w * 0.9, baselineY)
+  ctx.stroke()
+
+  for (let i = 0; i < barCount; i++) {
+    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.3 + Math.sin(i * 0.7 + time * 0.003) * 0.3)
+    const barH = freqVal * h * 0.35 + bass * 20
+    const x = startX + i * barWidth
+
+    // Glow
+    ctx.shadowColor = 'rgba(255,100,0,0.8)'
+    ctx.shadowBlur = 20
+
+    const grad = ctx.createLinearGradient(x, baselineY, x, baselineY - barH)
+    grad.addColorStop(0, 'rgba(255,80,0,0.9)')
+    grad.addColorStop(0.5, 'rgba(255,160,0,0.9)')
+    grad.addColorStop(1, 'rgba(255,220,50,0.7)')
+    ctx.fillStyle = grad
+
+    // Flame-like peaks (triangular)
+    ctx.beginPath()
+    ctx.moveTo(x, baselineY)
+    ctx.lineTo(x + barWidth * 0.5, baselineY - barH)
+    ctx.lineTo(x + barWidth, baselineY)
+    ctx.fill()
+  }
+  ctx.shadowBlur = 0
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SNOWFLAKE — dreamy blue sky with pulsing disc
+   ═══════════════════════════════════════════════════════════════ */
+function drawSnowflake(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Blue sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, h)
+  skyGrad.addColorStop(0, '#4a8ec2')
+  skyGrad.addColorStop(0.4, '#6ba8d4')
+  skyGrad.addColorStop(0.7, '#8ec0e0')
+  skyGrad.addColorStop(1, '#b8d8ec')
+  ctx.fillStyle = skyGrad
+  ctx.fillRect(0, 0, w, h)
+
+  // Soft clouds
+  for (let i = 0; i < 6; i++) {
+    const cx = (i * 0.18 + 0.05) * w + Math.sin(time * 0.0001 + i) * 20
+    const cy = h * (0.2 + i * 0.1)
+    const rx = w * 0.12
+    const ry = h * 0.04
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'
+    ctx.beginPath()
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Twinkling stars
+  for (let i = 0; i < 50; i++) {
+    const sx = (Math.sin(i * 13.7) * 0.5 + 0.5) * w
+    const sy = (Math.cos(i * 9.3) * 0.5 + 0.5) * h
+    const twinkle = 0.2 + Math.sin(time * 0.003 + i * 4.1) * 0.3
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, twinkle)})`
+    ctx.beginPath()
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Central pulsing disc
+  const cx = w / 2, cy = h * 0.4
+  const bass = audioData?.bass ?? 0.2
+  const volume = audioData?.volume ?? 0.2
+  const discR = Math.min(w, h) * 0.12 + bass * 15 + volume * 10
+
+  ctx.shadowColor = 'rgba(100,180,255,0.5)'
+  ctx.shadowBlur = 30 + bass * 20
+  drawCenterDisc(ctx, cx, cy, discR, {
+    fill: 'rgba(0,0,0,0.9)',
+    stroke: 'rgba(255,255,255,0.3)',
+    glow: 'rgba(100,180,255,0.4)',
+    glowBlur: 25,
+    lineWidth: 2,
+  })
+  ctx.shadowBlur = 0
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PINKY POP — cherry blossom petals
+   ═══════════════════════════════════════════════════════════════ */
+function drawPinkyPop(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, state: DrawState, time: number,
+) {
+  // Pink gradient background
+  const grad = ctx.createLinearGradient(0, 0, 0, h)
+  grad.addColorStop(0, '#fce4ec')
+  grad.addColorStop(0.3, '#f8bbd0')
+  grad.addColorStop(0.6, '#f48fb1')
+  grad.addColorStop(1, '#e8f5e9')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h)
+
+  // Cherry tree silhouettes
+  ctx.fillStyle = 'rgba(180,100,120,0.2)'
+  for (const tx of [w * 0.1, w * 0.85]) {
+    ctx.beginPath()
+    ctx.arc(tx, h * 0.25, w * 0.1, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillRect(tx - 3, h * 0.3, 6, h * 0.3)
+  }
+
+  // Falling petal particles
+  const bass = audioData?.bass ?? 0.2
+  for (let i = 0; i < 35; i++) {
+    const px = ((i * 37.3 + time * 0.00005 * (i % 3 + 1)) % 1) * w
+    const py = ((i * 23.7 + time * 0.0001 * (i % 2 + 1)) % 1) * h
+    const size = 3 + Math.sin(i * 5.3) * 2 + bass * 3
+    const rot = time * 0.001 + i * 2.1
+    const alpha = 0.4 + Math.sin(i * 3.1 + time * 0.002) * 0.2
+
+    ctx.save()
+    ctx.translate(px, py)
+    ctx.rotate(rot)
+    ctx.fillStyle = `rgba(255,${150 + (i % 50)},${170 + (i % 40)},${alpha})`
+    ctx.beginPath()
+    ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // Central pulsing disc
+  const cx = w / 2, cy = h * 0.4
+  const volume = audioData?.volume ?? 0.2
+  const discR = Math.min(w, h) * 0.12 + bass * 12 + volume * 8
+
+  ctx.shadowColor = 'rgba(255,100,150,0.5)'
+  ctx.shadowBlur = 25
+  drawCenterDisc(ctx, cx, cy, discR, {
+    fill: 'rgba(0,0,0,0.9)',
+    stroke: 'rgba(255,200,220,0.4)',
+    glow: 'rgba(255,100,150,0.3)',
+    glowBlur: 20,
+    lineWidth: 2,
+  })
+  ctx.shadowBlur = 0
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SEVEN SUNS — city lights with glowing dot arcs
+   ═══════════════════════════════════════════════════════════════ */
+function drawSevenSuns(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Dark sky to amber city
+  const grad = ctx.createLinearGradient(0, 0, 0, h)
+  grad.addColorStop(0, '#0a0a15')
+  grad.addColorStop(0.5, '#1a1520')
+  grad.addColorStop(0.8, '#2a1a10')
+  grad.addColorStop(1, '#1a0f05')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h)
+
+  // City lights glow at bottom
+  const cityGrad = ctx.createRadialGradient(w * 0.5, h, 0, w * 0.5, h, h * 0.5)
+  cityGrad.addColorStop(0, 'rgba(200,150,50,0.3)')
+  cityGrad.addColorStop(1, 'rgba(200,150,50,0)')
+  ctx.fillStyle = cityGrad
+  ctx.fillRect(0, h * 0.5, w, h * 0.5)
+
+  // Mountain silhouette
+  ctx.fillStyle = '#0d0d15'
+  ctx.beginPath()
+  ctx.moveTo(0, h)
+  ctx.lineTo(0, h * 0.7)
+  ctx.lineTo(w * 0.2, h * 0.55)
+  ctx.lineTo(w * 0.4, h * 0.65)
+  ctx.lineTo(w * 0.6, h * 0.5)
+  ctx.lineTo(w * 0.8, h * 0.6)
+  ctx.lineTo(w, h * 0.55)
+  ctx.lineTo(w, h)
+  ctx.fill()
+
+  // Central disc
+  const cx = w / 2, cy = h * 0.38
+  const bass = audioData?.bass ?? 0.2
+  const discR = Math.min(w, h) * 0.1
+  drawCenterDisc(ctx, cx, cy, discR, {
+    fill: 'rgba(0,0,0,0.92)',
+    stroke: 'rgba(255,180,50,0.3)',
+    glow: 'rgba(255,150,30,0.3)',
+    glowBlur: 20,
+    lineWidth: 2,
+  })
+
+  // Glowing frequency dots in arc patterns
+  const freq = audioData?.frequencyData
+  const dotCount = 60
+  for (let i = 0; i < dotCount; i++) {
+    const angle = (i / dotCount) * Math.PI * 2 + time * 0.0003
+    const freqVal = freq ? freq[Math.floor(i * freq.length / dotCount)] / 255 : (0.3 + Math.sin(i * 0.5 + time * 0.002) * 0.3)
+    const radius = discR * 1.8 + freqVal * Math.min(w, h) * 0.15 + bass * 20
+    const dx = cx + Math.cos(angle) * radius
+    const dy = cy + Math.sin(angle) * radius * 0.6
+    const dotSize = 2 + freqVal * 5
+    const hue = 20 + freqVal * 30 // amber to orange-red
+
+    ctx.shadowColor = `hsla(${hue},90%,50%,0.8)`
+    ctx.shadowBlur = 12
+    ctx.fillStyle = `hsla(${hue},90%,60%,${0.5 + freqVal * 0.5})`
+    ctx.beginPath()
+    ctx.arc(dx, dy, dotSize, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.shadowBlur = 0
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHROMATIC — rainbow ring around central disc
+   ═══════════════════════════════════════════════════════════════ */
+function drawChromaticSky(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Dark teal sky
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, h)
+  skyGrad.addColorStop(0, '#0d2b3e')
+  skyGrad.addColorStop(0.5, '#1a3d4e')
+  skyGrad.addColorStop(1, '#0a2030')
+  ctx.fillStyle = skyGrad
+  ctx.fillRect(0, 0, w, h)
+
+  // Atmospheric clouds
+  for (let i = 0; i < 4; i++) {
+    const cx2 = (i * 0.25 + 0.1) * w
+    const cy2 = h * (0.5 + i * 0.08)
+    ctx.fillStyle = 'rgba(150,180,200,0.08)'
+    ctx.beginPath()
+    ctx.ellipse(cx2, cy2, w * 0.15, h * 0.06, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Stars
+  for (let i = 0; i < 30; i++) {
+    const sx = (Math.sin(i * 17.3) * 0.5 + 0.5) * w
+    const sy = (Math.cos(i * 11.7) * 0.3 + 0.1) * h
+    ctx.fillStyle = `rgba(255,255,255,${0.2 + Math.sin(time * 0.003 + i * 3) * 0.15})`
+    ctx.beginPath()
+    ctx.arc(sx, sy, 1.2, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  const cx = w / 2, cy = h * 0.42
+  const bass = audioData?.bass ?? 0.2
+  const freq = audioData?.frequencyData
+  const discR = Math.min(w, h) * 0.1
+  const ringR = discR * 1.6
+
+  // Rainbow ring segments
+  const segments = 64
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2 - Math.PI / 2
+    const nextAngle = ((i + 1) / segments) * Math.PI * 2 - Math.PI / 2
+    const freqVal = freq ? freq[Math.floor(i * freq.length / segments)] / 255 : (0.3 + Math.sin(i * 0.3 + time * 0.002) * 0.2)
+    const spikeR = ringR + freqVal * discR * 0.8 + bass * 8
+    const hue = (i / segments) * 360
+
+    ctx.strokeStyle = `hsla(${hue},85%,55%,0.85)`
+    ctx.lineWidth = 3 + freqVal * 3
+    ctx.shadowColor = `hsla(${hue},90%,50%,0.6)`
+    ctx.shadowBlur = 8
+
+    ctx.beginPath()
+    ctx.moveTo(cx + Math.cos(angle) * ringR, cy + Math.sin(angle) * ringR)
+    ctx.lineTo(cx + Math.cos((angle + nextAngle) / 2) * spikeR, cy + Math.sin((angle + nextAngle) / 2) * spikeR)
+    ctx.lineTo(cx + Math.cos(nextAngle) * ringR, cy + Math.sin(nextAngle) * ringR)
+    ctx.stroke()
+  }
+  ctx.shadowBlur = 0
+
+  // Central disc
+  drawCenterDisc(ctx, cx, cy, discR, {
+    fill: 'rgba(0,0,0,0.92)',
+    stroke: 'rgba(255,255,255,0.2)',
+    glow: 'rgba(100,200,255,0.3)',
+    glowBlur: 20,
+    lineWidth: 2,
+  })
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   JUNGLE CAT — dark moody with horizontal bar spectrum
+   ═══════════════════════════════════════════════════════════════ */
+function drawJungleCat(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Dark green/black gradient
+  const grad = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, h * 0.8)
+  grad.addColorStop(0, '#0a1a0a')
+  grad.addColorStop(0.5, '#061208')
+  grad.addColorStop(1, '#020802')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h)
+
+  // Floating dust motes
+  for (let i = 0; i < 25; i++) {
+    const px = (Math.sin(i * 11.3 + time * 0.0002) * 0.5 + 0.5) * w
+    const py = (Math.cos(i * 7.7 + time * 0.0003) * 0.3 + 0.15) * h
+    const alpha = 0.15 + Math.sin(time * 0.002 + i * 5) * 0.1
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, alpha)})`
+    ctx.beginPath()
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Horizontal bar spectrum at center
+  const freq = audioData?.frequencyData
+  const barCount = 64
+  const totalW = w * 0.7
+  const barW = totalW / barCount
+  const startX = (w - totalW) / 2
+  const centerY = h * 0.45
+  const maxBarH = h * 0.12
+
+  for (let i = 0; i < barCount; i++) {
+    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.2 + Math.sin(i * 0.4 + time * 0.003) * 0.2)
+    const barH = freqVal * maxBarH
+    const x = startX + i * barW
+    const alpha = 0.4 + freqVal * 0.6
+
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`
+    // Bar going up and down from center
+    ctx.fillRect(x, centerY - barH, barW * 0.7, barH)
+    ctx.fillRect(x, centerY, barW * 0.7, barH * 0.5)
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRISMATIC — kaleidoscope with central pink orb
+   ═══════════════════════════════════════════════════════════════ */
+function drawPrismatic(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Black background
+  ctx.fillStyle = '#050005'
+  ctx.fillRect(0, 0, w, h)
+
+  const cx = w / 2, cy = h / 2
+  const bass = audioData?.bass ?? 0.2
+  const volume = audioData?.volume ?? 0.2
+
+  // Kaleidoscopic fractal pattern
+  const segments = 8
+  for (let s = 0; s < segments; s++) {
+    const angle = (s / segments) * Math.PI * 2
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(angle)
+
+    // Crystalline shapes
+    for (let j = 0; j < 5; j++) {
+      const dist = 50 + j * 40 + bass * 20
+      const size = 15 + j * 8 + volume * 10
+      const hue = (s * 45 + j * 20 + time * 0.02) % 360
+      ctx.fillStyle = `hsla(${hue},80%,40%,${0.15 - j * 0.02})`
+      ctx.beginPath()
+      ctx.moveTo(dist, -size)
+      ctx.lineTo(dist + size, 0)
+      ctx.lineTo(dist, size)
+      ctx.lineTo(dist - size * 0.3, 0)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+
+  // Central pink/magenta orb glow
+  const orbGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.2)
+  orbGrad.addColorStop(0, `rgba(255,50,150,${0.6 + bass * 0.3})`)
+  orbGrad.addColorStop(0.4, 'rgba(200,0,100,0.3)')
+  orbGrad.addColorStop(1, 'rgba(100,0,80,0)')
+  ctx.fillStyle = orbGrad
+  ctx.fillRect(0, 0, w, h)
+
+  // Horizontal bar spectrum at center
+  const freq = audioData?.frequencyData
+  const barCount = 48
+  const totalW = w * 0.6
+  const barW = totalW / barCount
+  const startX = (w - totalW) / 2
+  const maxBarH = h * 0.08
+
+  for (let i = 0; i < barCount; i++) {
+    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.2 + Math.sin(i * 0.5 + time * 0.003) * 0.25)
+    const barH = freqVal * maxBarH
+    ctx.fillStyle = `rgba(255,255,255,${0.5 + freqVal * 0.5})`
+    ctx.fillRect(startX + i * barW, cy - barH, barW * 0.7, barH)
+    ctx.fillRect(startX + i * barW, cy, barW * 0.7, barH * 0.7)
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DATASCAPE — synthwave grid with oscilloscope waveform
+   ═══════════════════════════════════════════════════════════════ */
+function drawDatascape(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  audioData: AudioData | null, _state: DrawState, time: number,
+) {
+  // Black sky
+  ctx.fillStyle = '#050008'
+  ctx.fillRect(0, 0, w, h)
+
+  // Stars
+  for (let i = 0; i < 30; i++) {
+    const sx = (Math.sin(i * 19.3) * 0.5 + 0.5) * w
+    const sy = (Math.cos(i * 13.7) * 0.3 + 0.05) * h
+    ctx.fillStyle = `rgba(255,255,255,${0.2 + Math.sin(time * 0.002 + i) * 0.15})`
+    ctx.beginPath()
+    ctx.arc(sx, sy, 1, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Synthwave perspective grid
+  const horizonY = h * 0.55
+  const gridColor = 'rgba(255,50,150,0.4)'
+  ctx.strokeStyle = gridColor
+  ctx.lineWidth = 1
+
+  // Horizontal lines receding into distance
+  for (let i = 0; i < 15; i++) {
+    const t = i / 15
+    const y = horizonY + (h - horizonY) * Math.pow(t, 0.7)
+    ctx.globalAlpha = 0.2 + t * 0.4
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(w, y)
+    ctx.stroke()
+  }
+
+  // Vertical lines converging to vanishing point
+  const vpX = w / 2
+  for (let i = -8; i <= 8; i++) {
+    const bottomX = vpX + i * (w * 0.08)
+    ctx.globalAlpha = 0.3
+    ctx.beginPath()
+    ctx.moveTo(vpX, horizonY)
+    ctx.lineTo(bottomX, h)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1
+
+  // Waveform oscilloscope at center
+  const freq = audioData?.frequencyData
+  const bass = audioData?.bass ?? 0.2
+  const waveY = h * 0.4
+  const waveW = w * 0.6
+  const startX = (w - waveW) / 2
+  const points = 80
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+  ctx.lineWidth = 2
+  ctx.shadowColor = 'rgba(255,255,255,0.5)'
+  ctx.shadowBlur = 8
+  ctx.beginPath()
+  for (let i = 0; i <= points; i++) {
+    const t = i / points
+    const x = startX + t * waveW
+    const freqVal = freq ? (freq[Math.floor(t * freq.length)] / 255 - 0.5) * 2 : Math.sin(t * 10 + time * 0.003) * 0.5
+    const y = waveY + freqVal * h * 0.1 * (1 + bass)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.stroke()
+  ctx.shadowBlur = 0
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN ENTRY POINT
    ═══════════════════════════════════════════════════════════════ */
 export function drawFrame(
@@ -948,7 +1488,23 @@ export function drawFrame(
   const targetParticles =
     template === 'lucky-clover'
       ? 60
-      : 90
+      : template === 'range-of-fire'
+        ? 45
+        : template === 'snowflake'
+          ? 70
+          : template === 'pinky-pop'
+            ? 80
+            : template === 'seven-suns'
+              ? 65
+              : template === 'chromatic'
+                ? 70
+                : template === 'jungle-cat'
+                  ? 30
+                  : template === 'prismatic'
+                    ? 55
+                    : template === 'datascape'
+                      ? 35
+                      : 90
 
   if (!state.initialized || state.particles.length !== targetParticles) {
     state.particles = initParticles(w, h, targetParticles)
@@ -958,6 +1514,14 @@ export function drawFrame(
   }
 
   if (template === 'lucky-clover') drawLuckyClover(ctx, w, h, audioData, state, time)
+  else if (template === 'range-of-fire') drawRangeOfFire(ctx, w, h, audioData, state, time)
+  else if (template === 'snowflake') drawSnowflake(ctx, w, h, audioData, state, time)
+  else if (template === 'pinky-pop') drawPinkyPop(ctx, w, h, audioData, state, time)
+  else if (template === 'seven-suns') drawSevenSuns(ctx, w, h, audioData, state, time)
+  else if (template === 'chromatic') drawChromaticSky(ctx, w, h, audioData, state, time)
+  else if (template === 'jungle-cat') drawJungleCat(ctx, w, h, audioData, state, time)
+  else if (template === 'prismatic') drawPrismatic(ctx, w, h, audioData, state, time)
+  else if (template === 'datascape') drawDatascape(ctx, w, h, audioData, state, time)
   else drawCountingStars(ctx, w, h, audioData, state, time)
 
   const tcx = w / 2

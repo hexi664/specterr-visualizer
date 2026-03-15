@@ -11,6 +11,14 @@ const AudioUploader = dynamic(() => import('@/components/AudioUploader'), { ssr:
 const templateOptions: { id: TemplateId; name: string; subtitle: string; referenceVideo?: string }[] = [
   { id: 'counting-stars', name: 'Counting Stars', subtitle: '柔和粉色圆点频谱', referenceVideo: '/videos/counting-stars.mp4' },
   { id: 'lucky-clover', name: 'Lucky Clover', subtitle: '绿色光晕有机脉动', referenceVideo: '/videos/lucky-clover.mp4' },
+  { id: 'range-of-fire', name: 'Range of Fire', subtitle: '火焰频谱山脉', referenceVideo: '/videos/range-of-fire.mp4' },
+  { id: 'snowflake', name: 'Snowflake', subtitle: '梦幻蓝天星光', referenceVideo: '/videos/snowflake.mp4' },
+  { id: 'pinky-pop', name: 'Pinky Pop', subtitle: '樱花飘落粉色梦', referenceVideo: '/videos/pinky-pop.mp4' },
+  { id: 'seven-suns', name: 'Seven Suns', subtitle: '城市灯火光点', referenceVideo: '/videos/seven-suns.mp4' },
+  { id: 'chromatic', name: 'Chromatic', subtitle: '彩虹光环频谱', referenceVideo: '/videos/chromatic.mp4' },
+  { id: 'jungle-cat', name: 'Jungle Cat', subtitle: '暗绿条形频谱', referenceVideo: '/videos/jungle-cat.mp4' },
+  { id: 'prismatic', name: 'Prismatic', subtitle: '万花筒棱镜', referenceVideo: '/videos/prismatic.mp4' },
+  { id: 'datascape', name: 'Datascape', subtitle: '赛博朋克网格', referenceVideo: '/videos/datascape.mp4' },
 ]
 
 export default function Home() {
