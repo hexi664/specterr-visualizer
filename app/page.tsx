@@ -8,18 +8,20 @@ import { AudioData, TemplateId } from '@/lib/types'
 const Visualizer = dynamic(() => import('@/components/Visualizer'), { ssr: false })
 const AudioUploader = dynamic(() => import('@/components/AudioUploader'), { ssr: false })
 
-const templateOptions: { id: TemplateId; name: string; subtitle: string }[] = [
-  { id: 'counting-stars', name: 'Counting Stars', subtitle: '粉色云天圆点频谱' },
-  { id: 'pinky-pop', name: 'Pinky Pop', subtitle: '雾森林火焰日冕' },
-  { id: 'lucky-clover', name: 'Lucky Clover', subtitle: '悬崖夕阳蓝白星爆' },
-  { id: 'petal-dance', name: 'Petal Dance', subtitle: '奇幻浮岛紫色径向条' },
-  { id: 'stardust-sky', name: 'Stardust Sky', subtitle: '赛博朋克城市脉冲' },
+const templateOptions: { id: TemplateId; name: string; subtitle: string; referenceVideo?: string }[] = [
+  { id: 'counting-stars', name: 'Counting Stars', subtitle: '柔和粉色圆点频谱', referenceVideo: '/videos/counting-stars.mp4' },
+  { id: 'inferno', name: 'Inferno', subtitle: '火焰粒子频谱' },
+  { id: 'power-orb', name: 'Power Orb', subtitle: '能量球电光脉冲' },
+  { id: 'techscape', name: 'Techscape', subtitle: '科技风条形频谱' },
+  { id: 'synthwave', name: 'Synthwave', subtitle: '赛博朋克霓虹' },
+  { id: 'chromatic', name: 'Chromatic', subtitle: '彩虹渐变频谱' },
 ]
 
 export default function Home() {
   const [audioData, setAudioData] = useState<AudioData | null>(null)
   const [hasAudio, setHasAudio] = useState(false)
   const [template, setTemplate] = useState<TemplateId>('counting-stars')
+  const [showRefVideo, setShowRefVideo] = useState(false)
   const analyzerRef = useRef<AudioAnalyzer | null>(null)
   const rafRef = useRef<number>(0)
 
@@ -81,6 +83,50 @@ export default function Home() {
       </div>
 
       {!hasAudio && <AudioUploader onAudioReady={handleAudioReady} />}
+
+      {/* Reference Video Button - bottom right */}
+      {current?.referenceVideo && (
+        <button
+          onClick={() => setShowRefVideo(true)}
+          className="absolute bottom-6 right-6 z-20 flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all group"
+        >
+          <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span className="text-sm font-medium">参考视频</span>
+        </button>
+      )}
+
+      {/* Reference Video Modal */}
+      {showRefVideo && current?.referenceVideo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowRefVideo(false)}
+        >
+          <div
+            className="relative w-[90vw] max-w-4xl bg-black/90 rounded-2xl border border-white/20 overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+              <span className="text-white/90 text-sm font-medium">参考视频 — {current.name}</span>
+              <button
+                onClick={() => setShowRefVideo(false)}
+                className="text-white/60 hover:text-white transition p-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <video
+              src={current.referenceVideo}
+              controls
+              autoPlay
+              className="w-full aspect-video"
+            />
+          </div>
+        </div>
+      )}
     </main>
   )
 }
