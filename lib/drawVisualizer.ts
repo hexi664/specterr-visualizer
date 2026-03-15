@@ -823,31 +823,28 @@ function drawLuckyClover(
   if (audioData?.beat) state.pulseScale = 1.06
   state.pulseScale += (1 - state.pulseScale) * 0.07
 
-  // smooth 64 radial samples for blob shape
   const blobN = 64
-  smoothBars(state, audioData, blobN, 0.5, 0.06)
+  smoothBars(state, audioData, blobN, 0.52, 0.07)
 
-  // compute blob radii using noise-like smoothing
   const radii: number[] = []
   for (let i = 0; i < blobN; i++) {
     const v = state.smoothedBars[i] || 0
-    // blend neighbours for organic softness
-    const prev = state.smoothedBars[(i - 1 + blobN) % blobN] || 0
-    const next = state.smoothedBars[(i + 1) % blobN] || 0
-    const blended = prev * 0.25 + v * 0.5 + next * 0.25
-    const r = discR * 1.15 + Math.pow(blended, 0.8) * minDim * 0.22
+    const prev1 = state.smoothedBars[(i - 1 + blobN) % blobN] || 0
+    const next1 = state.smoothedBars[(i + 1) % blobN] || 0
+    const prev2 = state.smoothedBars[(i - 2 + blobN) % blobN] || 0
+    const next2 = state.smoothedBars[(i + 2) % blobN] || 0
+    const blended = prev2 * 0.08 + prev1 * 0.22 + v * 0.4 + next1 * 0.22 + next2 * 0.08
+    const angle = (i / blobN) * Math.PI * 2
+    const lobeModulation = 0.4 + 0.6 * Math.pow(Math.abs(Math.cos(2 * angle)), 1.5)
+    const freqDrivenRadius = Math.pow(blended, 0.8) * minDim * 0.32
+    const r = discR * 1.15 + freqDrivenRadius * lobeModulation
     radii.push(r * state.pulseScale)
   }
 
   ctx.save()
   ctx.translate(cx, cy)
 
-  // --- outer soft glow layer ---
-  for (let pass = 3; pass >= 0; pass--) {
-    const scale = 1 + pass * 0.12
-    const alpha = 0.06 - pass * 0.012
-    ctx.save()
-    ctx.scale(scale, scale)
+  const traceBlobPath = () => {
     ctx.beginPath()
     for (let i = 0; i <= blobN; i++) {
       const idx = i % blobN
@@ -870,52 +867,36 @@ function drawLuckyClover(
       }
     }
     ctx.closePath()
-    ctx.fillStyle = `rgba(0,255,65,${alpha})`
+  }
+
+  const glowScales = [1.48, 1.36, 1.24, 1.12]
+  const glowAlphas = [0.04, 0.06, 0.08, 0.12]
+  for (let pass = 0; pass < 4; pass++) {
+    ctx.save()
+    ctx.scale(glowScales[pass], glowScales[pass])
+    traceBlobPath()
+    ctx.fillStyle = `rgba(0,255,65,${glowAlphas[pass]})`
     ctx.fill()
     ctx.restore()
   }
 
-  // --- main green blob ---
-  ctx.beginPath()
-  for (let i = 0; i <= blobN; i++) {
-    const idx = i % blobN
-    const a = (idx / blobN) * Math.PI * 2 - Math.PI / 2
-    const r = radii[idx]
-    const x = Math.cos(a) * r
-    const y = Math.sin(a) * r
-    if (i === 0) ctx.moveTo(x, y)
-    else {
-      // smooth Catmull-Rom-ish curve via quadratic bezier
-      const prevIdx = (idx - 1 + blobN) % blobN
-      const prevA = (prevIdx / blobN) * Math.PI * 2 - Math.PI / 2
-      const cpR = (radii[prevIdx] + r) / 2
-      const midA = (prevA + a) / 2
-      ctx.quadraticCurveTo(
-        Math.cos(prevA) * radii[prevIdx],
-        Math.sin(prevA) * radii[prevIdx],
-        Math.cos(midA) * cpR,
-        Math.sin(midA) * cpR,
-      )
-    }
-  }
-  ctx.closePath()
+  traceBlobPath()
 
-  // gradient fill: white-green core → electric green → teal edge
   const blobGrad = ctx.createRadialGradient(0, 0, discR * 0.8, 0, 0, minDim * 0.28)
-  blobGrad.addColorStop(0, 'rgba(200,255,200,0.9)')
-  blobGrad.addColorStop(0.3, 'rgba(57,255,20,0.7)')
-  blobGrad.addColorStop(0.6, 'rgba(0,255,65,0.45)')
-  blobGrad.addColorStop(1, 'rgba(0,180,80,0.08)')
+  blobGrad.addColorStop(0, 'rgba(240,255,240,0.95)')
+  blobGrad.addColorStop(0.2, 'rgba(180,255,180,0.85)')
+  blobGrad.addColorStop(0.4, 'rgba(57,255,20,0.7)')
+  blobGrad.addColorStop(0.7, 'rgba(0,255,65,0.4)')
+  blobGrad.addColorStop(1, 'rgba(0,180,80,0.05)')
   ctx.fillStyle = blobGrad
   ctx.shadowColor = '#00ff41'
-  ctx.shadowBlur = 40
+  ctx.shadowBlur = 50
   ctx.fill()
 
-  // inner bright ring
-  ctx.shadowBlur = 25
-  ctx.shadowColor = '#7fff00'
-  ctx.strokeStyle = 'rgba(127,255,0,0.35)'
-  ctx.lineWidth = minDim * 0.006
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+  ctx.lineWidth = minDim * 0.003
+  ctx.shadowColor = 'rgba(255,255,255,0.3)'
+  ctx.shadowBlur = 4
   ctx.stroke()
   ctx.shadowBlur = 0
 
@@ -936,90 +917,109 @@ function drawLuckyClover(
    ═══════════════════════════════════════════════════════════════ */
 function drawRangeOfFire(
   ctx: CanvasRenderingContext2D, w: number, h: number,
-  audioData: AudioData | null, _state: DrawState, time: number,
+  audioData: AudioData | null, state: DrawState, time: number,
 ) {
-  // Teal mountain background
   const skyGrad = ctx.createLinearGradient(0, 0, 0, h)
-  skyGrad.addColorStop(0, '#0a3d3d')
-  skyGrad.addColorStop(0.5, '#0d4f4a')
-  skyGrad.addColorStop(1, '#061a1a')
+  skyGrad.addColorStop(0, '#6faeb2')
+  skyGrad.addColorStop(0.4, '#4e9097')
+  skyGrad.addColorStop(0.72, '#1a434a')
+  skyGrad.addColorStop(1, '#08171c')
   ctx.fillStyle = skyGrad
   ctx.fillRect(0, 0, w, h)
 
-  // Mountain silhouettes
-  const mountainY = h * 0.45
-  ctx.fillStyle = '#072e2e'
+  const mist = ctx.createRadialGradient(w * 0.52, h * 0.32, 0, w * 0.52, h * 0.45, w * 0.55)
+  mist.addColorStop(0, 'rgba(160,230,235,0.22)')
+  mist.addColorStop(1, 'rgba(160,230,235,0)')
+  ctx.fillStyle = mist
+  ctx.fillRect(0, 0, w, h)
+
+  const mountainY = h * 0.5
+  ctx.fillStyle = '#152b30'
   ctx.beginPath()
   ctx.moveTo(0, h)
-  ctx.lineTo(0, mountainY + 60)
-  ctx.lineTo(w * 0.15, mountainY + 20)
-  ctx.lineTo(w * 0.3, mountainY + 50)
-  ctx.lineTo(w * 0.45, mountainY - 10)
-  ctx.lineTo(w * 0.5, mountainY - 40)
-  ctx.lineTo(w * 0.55, mountainY - 10)
-  ctx.lineTo(w * 0.7, mountainY + 30)
-  ctx.lineTo(w * 0.85, mountainY + 10)
-  ctx.lineTo(w, mountainY + 40)
+  ctx.lineTo(0, mountainY + h * 0.05)
+  ctx.lineTo(w * 0.1, mountainY - h * 0.02)
+  ctx.lineTo(w * 0.2, mountainY + h * 0.03)
+  ctx.lineTo(w * 0.34, mountainY - h * 0.05)
+  ctx.lineTo(w * 0.43, mountainY - h * 0.12)
+  ctx.lineTo(w * 0.5, mountainY - h * 0.18)
+  ctx.lineTo(w * 0.56, mountainY - h * 0.1)
+  ctx.lineTo(w * 0.67, mountainY - h * 0.02)
+  ctx.lineTo(w * 0.82, mountainY - h * 0.08)
+  ctx.lineTo(w, mountainY - h * 0.01)
   ctx.lineTo(w, h)
   ctx.fill()
 
-  // Snow cap
-  ctx.fillStyle = 'rgba(200,220,230,0.3)'
+  ctx.fillStyle = 'rgba(210,224,230,0.45)'
   ctx.beginPath()
-  ctx.moveTo(w * 0.45, mountainY - 10)
-  ctx.lineTo(w * 0.5, mountainY - 40)
-  ctx.lineTo(w * 0.55, mountainY - 10)
+  ctx.moveTo(w * 0.46, mountainY - h * 0.13)
+  ctx.lineTo(w * 0.5, mountainY - h * 0.18)
+  ctx.lineTo(w * 0.54, mountainY - h * 0.1)
+  ctx.lineTo(w * 0.5, mountainY - h * 0.08)
   ctx.fill()
 
-  // Bokeh particles
-  for (let i = 0; i < 40; i++) {
-    const px = (Math.sin(i * 7.3 + time * 0.0002) * 0.5 + 0.5) * w
-    const py = (Math.cos(i * 5.1 + time * 0.0003) * 0.5 + 0.5) * h
-    const r = 1 + Math.sin(i * 3.7 + time * 0.001) * 1.5
-    ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.sin(i * 2.3 + time * 0.002) * 0.1})`
-    ctx.beginPath()
-    ctx.arc(px, py, Math.abs(r), 0, Math.PI * 2)
-    ctx.fill()
-  }
+  const lake = ctx.createLinearGradient(0, h * 0.74, 0, h)
+  lake.addColorStop(0, 'rgba(70,130,140,0.28)')
+  lake.addColorStop(1, 'rgba(5,18,22,0.12)')
+  ctx.fillStyle = lake
+  ctx.fillRect(0, h * 0.72, w, h * 0.28)
 
-  // Fire spectrum bars
+  drawParticles(ctx, w, h, time, state, {
+    boost: 0.45,
+    color: [240, 255, 255],
+    twinkle: 0.45,
+    sizeScale: 0.95,
+  })
+
   const bass = audioData?.bass ?? 0.3
-  const freq = audioData?.frequencyData
-  const barCount = 15
-  const baselineY = h * 0.5
-  const barWidth = w * 0.6 / barCount
-  const startX = w * 0.2
+  const barCount = 72
+  smoothBars(state, audioData, barCount, 0.62, 0.08)
+  const baselineY = h * 0.457
+  const startX = w * 0.1
+  const width = w * 0.8
+  const step = width / (barCount - 1)
 
-  // Baseline
-  ctx.strokeStyle = 'rgba(255,140,0,0.6)'
-  ctx.lineWidth = 2
+  ctx.strokeStyle = 'rgba(255,140,90,0.8)'
+  ctx.lineWidth = Math.max(1.4, Math.min(w, h) * 0.0021)
+  ctx.shadowColor = 'rgba(255,112,64,0.9)'
+  ctx.shadowBlur = 18
   ctx.beginPath()
-  ctx.moveTo(w * 0.1, baselineY)
-  ctx.lineTo(w * 0.9, baselineY)
+  ctx.moveTo(startX, baselineY)
+  ctx.lineTo(startX + width, baselineY)
   ctx.stroke()
 
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.beginPath()
+  ctx.moveTo(startX, baselineY)
   for (let i = 0; i < barCount; i++) {
-    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.3 + Math.sin(i * 0.7 + time * 0.003) * 0.3)
-    const barH = freqVal * h * 0.35 + bass * 20
-    const x = startX + i * barWidth
-
-    // Glow
-    ctx.shadowColor = 'rgba(255,100,0,0.8)'
-    ctx.shadowBlur = 20
-
-    const grad = ctx.createLinearGradient(x, baselineY, x, baselineY - barH)
-    grad.addColorStop(0, 'rgba(255,80,0,0.9)')
-    grad.addColorStop(0.5, 'rgba(255,160,0,0.9)')
-    grad.addColorStop(1, 'rgba(255,220,50,0.7)')
-    ctx.fillStyle = grad
-
-    // Flame-like peaks (triangular)
-    ctx.beginPath()
-    ctx.moveTo(x, baselineY)
-    ctx.lineTo(x + barWidth * 0.5, baselineY - barH)
-    ctx.lineTo(x + barWidth, baselineY)
-    ctx.fill()
+    const t = i / (barCount - 1)
+    const v = state.smoothedBars[i] || 0
+    const envelope = 0.85 + Math.sin(t * Math.PI * 3.2 + time * 0.0012) * 0.15
+    const amp = Math.pow(v, 1.28) * h * 0.11 + bass * h * 0.045
+    const y = baselineY - amp * envelope
+    const x = startX + i * step
+    ctx.lineTo(x, y)
   }
+  ctx.lineTo(startX + width, baselineY)
+  ctx.closePath()
+
+  const flameGrad = ctx.createLinearGradient(0, baselineY - h * 0.16, 0, baselineY)
+  flameGrad.addColorStop(0, 'rgba(255,245,170,0.95)')
+  flameGrad.addColorStop(0.38, 'rgba(255,170,92,0.9)')
+  flameGrad.addColorStop(0.7, 'rgba(255,102,66,0.82)')
+  flameGrad.addColorStop(1, 'rgba(255,72,38,0.2)')
+  ctx.fillStyle = flameGrad
+  ctx.shadowColor = 'rgba(255,110,58,0.92)'
+  ctx.shadowBlur = 26
+  ctx.fill()
+
+  ctx.shadowBlur = 12
+  ctx.strokeStyle = 'rgba(255,220,160,0.45)'
+  ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.0015)
+  ctx.stroke()
+  ctx.restore()
+
   ctx.shadowBlur = 0
 }
 
@@ -1289,46 +1289,102 @@ function drawChromaticSky(
    ═══════════════════════════════════════════════════════════════ */
 function drawJungleCat(
   ctx: CanvasRenderingContext2D, w: number, h: number,
-  audioData: AudioData | null, _state: DrawState, time: number,
+  audioData: AudioData | null, state: DrawState, time: number,
 ) {
-  // Dark green/black gradient
-  const grad = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, h * 0.8)
-  grad.addColorStop(0, '#0a1a0a')
-  grad.addColorStop(0.5, '#061208')
-  grad.addColorStop(1, '#020802')
+  const grad = ctx.createLinearGradient(0, 0, 0, h)
+  grad.addColorStop(0, '#20302a')
+  grad.addColorStop(0.48, '#1a2a25')
+  grad.addColorStop(1, '#0a1614')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, w, h)
 
-  // Floating dust motes
-  for (let i = 0; i < 25; i++) {
-    const px = (Math.sin(i * 11.3 + time * 0.0002) * 0.5 + 0.5) * w
-    const py = (Math.cos(i * 7.7 + time * 0.0003) * 0.3 + 0.15) * h
-    const alpha = 0.15 + Math.sin(time * 0.002 + i * 5) * 0.1
-    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, alpha)})`
+  for (let i = 0; i < 14; i++) {
+    const px = (i / 13) * w
+    const py = h * (0.32 + Math.sin(i * 0.8 + time * 0.0004) * 0.08)
+    const r = h * (0.07 + (i % 4) * 0.015)
+    const haze = ctx.createRadialGradient(px, py, 0, px, py, r)
+    haze.addColorStop(0, 'rgba(160,210,170,0.08)')
+    haze.addColorStop(1, 'rgba(160,210,170,0)')
+    ctx.fillStyle = haze
     ctx.beginPath()
-    ctx.arc(px, py, 1.5, 0, Math.PI * 2)
+    ctx.arc(px, py, r, 0, Math.PI * 2)
     ctx.fill()
   }
 
-  // Horizontal bar spectrum at center
-  const freq = audioData?.frequencyData
-  const barCount = 64
-  const totalW = w * 0.7
-  const barW = totalW / barCount
-  const startX = (w - totalW) / 2
-  const centerY = h * 0.45
-  const maxBarH = h * 0.12
+  const headX = w * 0.53
+  const headY = h * 0.47
+  const headR = Math.min(w, h) * 0.26
+  const headGrad = ctx.createRadialGradient(headX, headY, headR * 0.15, headX, headY, headR)
+  headGrad.addColorStop(0, 'rgba(40,45,42,0.75)')
+  headGrad.addColorStop(1, 'rgba(5,10,8,0.72)')
+  ctx.fillStyle = headGrad
+  ctx.beginPath()
+  ctx.ellipse(headX, headY, headR * 0.9, headR * 1.02, -0.08, 0, Math.PI * 2)
+  ctx.fill()
 
+  ctx.fillStyle = 'rgba(12,18,15,0.84)'
+  ctx.beginPath()
+  ctx.moveTo(headX - headR * 0.48, headY - headR * 0.66)
+  ctx.lineTo(headX - headR * 0.28, headY - headR * 1.2)
+  ctx.lineTo(headX - headR * 0.1, headY - headR * 0.62)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(headX + headR * 0.48, headY - headR * 0.66)
+  ctx.lineTo(headX + headR * 0.28, headY - headR * 1.2)
+  ctx.lineTo(headX + headR * 0.1, headY - headR * 0.62)
+  ctx.closePath()
+  ctx.fill()
+
+  const eyeSep = headR * 0.38
+  for (const ex of [headX - eyeSep, headX + eyeSep]) {
+    const eyeGlow = ctx.createRadialGradient(ex, headY - headR * 0.16, 0, ex, headY - headR * 0.16, headR * 0.2)
+    eyeGlow.addColorStop(0, 'rgba(255,208,80,0.96)')
+    eyeGlow.addColorStop(0.55, 'rgba(238,157,45,0.86)')
+    eyeGlow.addColorStop(1, 'rgba(238,157,45,0)')
+    ctx.fillStyle = eyeGlow
+    ctx.beginPath()
+    ctx.ellipse(ex, headY - headR * 0.16, headR * 0.11, headR * 0.085, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.fillStyle = 'rgba(28,22,16,0.9)'
+    ctx.beginPath()
+    ctx.ellipse(ex, headY - headR * 0.16, headR * 0.02, headR * 0.07, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  drawParticles(ctx, w, h, time, state, {
+    boost: 0.38,
+    color: [245, 255, 245],
+    twinkle: 0.42,
+    sizeScale: 1.05,
+  })
+
+  const mid = audioData?.mid ?? 0.25
+  const barCount = 84
+  smoothBars(state, audioData, barCount, 0.66, 0.09)
+  const baselineY = h * 0.455
+  const startX = w * 0.09
+  const width = w * 0.82
+  const step = width / barCount
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.74)'
+  ctx.lineWidth = Math.max(1.1, Math.min(w, h) * 0.0018)
+  ctx.setLineDash([Math.max(2, w * 0.003), Math.max(2, w * 0.003)])
+  ctx.beginPath()
+  ctx.moveTo(startX, baselineY)
+  ctx.lineTo(startX + width, baselineY)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'
   for (let i = 0; i < barCount; i++) {
-    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.2 + Math.sin(i * 0.4 + time * 0.003) * 0.2)
-    const barH = freqVal * maxBarH
-    const x = startX + i * barW
-    const alpha = 0.4 + freqVal * 0.6
-
-    ctx.fillStyle = `rgba(255,255,255,${alpha})`
-    // Bar going up and down from center
-    ctx.fillRect(x, centerY - barH, barW * 0.7, barH)
-    ctx.fillRect(x, centerY, barW * 0.7, barH * 0.5)
+    const v = state.smoothedBars[i] || 0
+    const hUp = Math.pow(v, 1.6) * h * 0.12 + mid * h * 0.015
+    const x = startX + i * step
+    const bw = Math.max(1.4, step * 0.56)
+    ctx.fillRect(x, baselineY - hUp, bw, hUp)
+    ctx.fillRect(x, baselineY, bw, hUp * 0.14)
   }
 }
 
@@ -1337,63 +1393,87 @@ function drawJungleCat(
    ═══════════════════════════════════════════════════════════════ */
 function drawPrismatic(
   ctx: CanvasRenderingContext2D, w: number, h: number,
-  audioData: AudioData | null, _state: DrawState, time: number,
+  audioData: AudioData | null, state: DrawState, time: number,
 ) {
-  // Black background
-  ctx.fillStyle = '#050005'
+  const grad = ctx.createLinearGradient(0, 0, 0, h)
+  grad.addColorStop(0, '#0a1010')
+  grad.addColorStop(0.45, '#101b17')
+  grad.addColorStop(1, '#07100d')
+  ctx.fillStyle = grad
   ctx.fillRect(0, 0, w, h)
 
-  const cx = w / 2, cy = h / 2
+  const cx = w / 2
+  const cy = h / 2
   const bass = audioData?.bass ?? 0.2
-  const volume = audioData?.volume ?? 0.2
 
-  // Kaleidoscopic fractal pattern
-  const segments = 8
-  for (let s = 0; s < segments; s++) {
-    const angle = (s / segments) * Math.PI * 2
-    ctx.save()
-    ctx.translate(cx, cy)
-    ctx.rotate(angle)
-
-    // Crystalline shapes
-    for (let j = 0; j < 5; j++) {
-      const dist = 50 + j * 40 + bass * 20
-      const size = 15 + j * 8 + volume * 10
-      const hue = (s * 45 + j * 20 + time * 0.02) % 360
-      ctx.fillStyle = `hsla(${hue},80%,40%,${0.15 - j * 0.02})`
-      ctx.beginPath()
-      ctx.moveTo(dist, -size)
-      ctx.lineTo(dist + size, 0)
-      ctx.lineTo(dist, size)
-      ctx.lineTo(dist - size * 0.3, 0)
-      ctx.fill()
+  for (const sy of [1, -1]) {
+    for (const sx of [1, -1]) {
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.scale(sx, sy)
+      for (let layer = 0; layer < 5; layer++) {
+        const depth = layer / 5
+        const x0 = w * (0.08 + layer * 0.08)
+        const y0 = h * (0.06 + layer * 0.02)
+        const x1 = x0 + w * 0.2
+        const hue = 320 + layer * 12 + Math.sin(time * 0.0009 + layer) * 8
+        ctx.fillStyle = `hsla(${hue},70%,${24 + layer * 4}%,${0.18 + depth * 0.1})`
+        ctx.beginPath()
+        ctx.moveTo(x0, y0)
+        ctx.lineTo(x1, y0 + h * 0.14)
+        ctx.lineTo(x0 + w * 0.12, y0 + h * 0.19)
+        ctx.lineTo(x0 - w * 0.03, y0 + h * 0.1)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.restore()
     }
-    ctx.restore()
   }
 
-  // Central pink/magenta orb glow
-  const orbGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.2)
-  orbGrad.addColorStop(0, `rgba(255,50,150,${0.6 + bass * 0.3})`)
-  orbGrad.addColorStop(0.4, 'rgba(200,0,100,0.3)')
-  orbGrad.addColorStop(1, 'rgba(100,0,80,0)')
-  ctx.fillStyle = orbGrad
+  const orb = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.36)
+  orb.addColorStop(0, `rgba(255,118,178,${0.86 + bass * 0.1})`)
+  orb.addColorStop(0.3, 'rgba(255,72,142,0.58)')
+  orb.addColorStop(0.6, 'rgba(124,219,255,0.22)')
+  orb.addColorStop(1, 'rgba(124,219,255,0)')
+  ctx.fillStyle = orb
   ctx.fillRect(0, 0, w, h)
 
-  // Horizontal bar spectrum at center
-  const freq = audioData?.frequencyData
-  const barCount = 48
-  const totalW = w * 0.6
-  const barW = totalW / barCount
-  const startX = (w - totalW) / 2
-  const maxBarH = h * 0.08
+  const sideGlowR = ctx.createRadialGradient(cx + w * 0.18, cy, 0, cx + w * 0.18, cy, w * 0.2)
+  sideGlowR.addColorStop(0, 'rgba(145,235,255,0.32)')
+  sideGlowR.addColorStop(1, 'rgba(145,235,255,0)')
+  ctx.fillStyle = sideGlowR
+  ctx.fillRect(0, 0, w, h)
+  const sideGlowL = ctx.createRadialGradient(cx - w * 0.18, cy, 0, cx - w * 0.18, cy, w * 0.2)
+  sideGlowL.addColorStop(0, 'rgba(145,235,255,0.32)')
+  sideGlowL.addColorStop(1, 'rgba(145,235,255,0)')
+  ctx.fillStyle = sideGlowL
+  ctx.fillRect(0, 0, w, h)
 
+  const barCount = 108
+  smoothBars(state, audioData, barCount, 0.63, 0.08)
+  const baselineY = h * 0.5
+  const startX = w * 0.05
+  const width = w * 0.9
+  const step = width / barCount
+
+  ctx.shadowColor = 'rgba(255,255,255,0.7)'
+  ctx.shadowBlur = 10
+  ctx.fillStyle = 'rgba(255,255,255,0.96)'
   for (let i = 0; i < barCount; i++) {
-    const freqVal = freq ? freq[Math.floor(i * freq.length / barCount)] / 255 : (0.2 + Math.sin(i * 0.5 + time * 0.003) * 0.25)
-    const barH = freqVal * maxBarH
-    ctx.fillStyle = `rgba(255,255,255,${0.5 + freqVal * 0.5})`
-    ctx.fillRect(startX + i * barW, cy - barH, barW * 0.7, barH)
-    ctx.fillRect(startX + i * barW, cy, barW * 0.7, barH * 0.7)
+    const v = state.smoothedBars[i] || 0
+    const amp = Math.pow(v, 1.45) * h * 0.1 + bass * h * 0.028
+    const x = startX + i * step
+    const bw = Math.max(1.3, step * 0.62)
+    ctx.fillRect(x, baselineY - amp, bw, amp * 2)
   }
+  ctx.shadowBlur = 0
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+  ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.0015)
+  ctx.beginPath()
+  ctx.moveTo(startX, baselineY)
+  ctx.lineTo(startX + width, baselineY)
+  ctx.stroke()
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1401,72 +1481,90 @@ function drawPrismatic(
    ═══════════════════════════════════════════════════════════════ */
 function drawDatascape(
   ctx: CanvasRenderingContext2D, w: number, h: number,
-  audioData: AudioData | null, _state: DrawState, time: number,
+  audioData: AudioData | null, state: DrawState, time: number,
 ) {
-  // Black sky
-  ctx.fillStyle = '#050008'
+  const bg = ctx.createLinearGradient(0, 0, 0, h)
+  bg.addColorStop(0, '#04030a')
+  bg.addColorStop(0.6, '#06040b')
+  bg.addColorStop(1, '#0a0612')
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
-  // Stars
-  for (let i = 0; i < 30; i++) {
-    const sx = (Math.sin(i * 19.3) * 0.5 + 0.5) * w
-    const sy = (Math.cos(i * 13.7) * 0.3 + 0.05) * h
-    ctx.fillStyle = `rgba(255,255,255,${0.2 + Math.sin(time * 0.002 + i) * 0.15})`
+  for (let i = 0; i < 80; i++) {
+    const sx = (Math.sin(i * 17.3) * 0.5 + 0.5) * w
+    const sy = (Math.cos(i * 9.1) * 0.5 + 0.45) * h * 0.95
+    const alpha = 0.12 + Math.sin(time * 0.0013 + i) * 0.08
+    ctx.fillStyle = `rgba(255,220,255,${Math.max(0.03, alpha)})`
     ctx.beginPath()
-    ctx.arc(sx, sy, 1, 0, Math.PI * 2)
+    ctx.arc(sx, sy, 0.9 + (i % 3) * 0.3, 0, Math.PI * 2)
     ctx.fill()
   }
 
-  // Synthwave perspective grid
-  const horizonY = h * 0.55
-  const gridColor = 'rgba(255,50,150,0.4)'
-  ctx.strokeStyle = gridColor
+  const horizonY = h * 0.47
+  ctx.strokeStyle = 'rgba(206,72,170,0.35)'
   ctx.lineWidth = 1
-
-  // Horizontal lines receding into distance
-  for (let i = 0; i < 15; i++) {
-    const t = i / 15
-    const y = horizonY + (h - horizonY) * Math.pow(t, 0.7)
-    ctx.globalAlpha = 0.2 + t * 0.4
+  for (let i = 0; i < 18; i++) {
+    const t = i / 17
+    const y = horizonY + (h - horizonY) * Math.pow(t, 1.22)
     ctx.beginPath()
     ctx.moveTo(0, y)
     ctx.lineTo(w, y)
     ctx.stroke()
   }
 
-  // Vertical lines converging to vanishing point
   const vpX = w / 2
-  for (let i = -8; i <= 8; i++) {
-    const bottomX = vpX + i * (w * 0.08)
-    ctx.globalAlpha = 0.3
+  for (let i = -12; i <= 12; i++) {
+    const x = vpX + i * (w * 0.05)
     ctx.beginPath()
     ctx.moveTo(vpX, horizonY)
-    ctx.lineTo(bottomX, h)
+    ctx.lineTo(x, h)
     ctx.stroke()
   }
-  ctx.globalAlpha = 1
 
-  // Waveform oscilloscope at center
-  const freq = audioData?.frequencyData
-  const bass = audioData?.bass ?? 0.2
-  const waveY = h * 0.4
-  const waveW = w * 0.6
-  const startX = (w - waveW) / 2
-  const points = 80
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-  ctx.lineWidth = 2
-  ctx.shadowColor = 'rgba(255,255,255,0.5)'
-  ctx.shadowBlur = 8
+  ctx.fillStyle = 'rgba(188,110,175,0.42)'
   ctx.beginPath()
-  for (let i = 0; i <= points; i++) {
-    const t = i / points
-    const x = startX + t * waveW
-    const freqVal = freq ? (freq[Math.floor(t * freq.length)] / 255 - 0.5) * 2 : Math.sin(t * 10 + time * 0.003) * 0.5
-    const y = waveY + freqVal * h * 0.1 * (1 + bass)
+  ctx.moveTo(vpX - w * 0.18, h * 0.86)
+  ctx.lineTo(vpX - w * 0.06, horizonY + h * 0.02)
+  ctx.lineTo(vpX + w * 0.06, horizonY + h * 0.02)
+  ctx.lineTo(vpX + w * 0.18, h * 0.86)
+  ctx.closePath()
+  ctx.fill()
+
+  const waveCount = 96
+  smoothBars(state, audioData, waveCount, 0.66, 0.08)
+  const bass = audioData?.bass ?? 0.2
+  const waveY = h * 0.445
+  const startX = w * 0.09
+  const width = w * 0.82
+  const step = width / (waveCount - 1)
+
+  ctx.beginPath()
+  ctx.moveTo(startX, waveY)
+  for (let i = 0; i < waveCount; i++) {
+    const t = i / (waveCount - 1)
+    const v = state.smoothedBars[i] || 0
+    const x = startX + i * step
+    const y = waveY - Math.pow(v, 1.45) * h * 0.105 - Math.sin(t * Math.PI * 5.2 + time * 0.0009) * h * 0.005 - bass * h * 0.018
+    ctx.lineTo(x, y)
+  }
+  ctx.lineTo(startX + width, waveY)
+  ctx.closePath()
+  ctx.fillStyle = 'rgba(255,255,255,0.96)'
+  ctx.shadowColor = 'rgba(255,255,255,0.5)'
+  ctx.shadowBlur = 9
+  ctx.fill()
+
+  ctx.beginPath()
+  for (let i = 0; i < waveCount; i++) {
+    const t = i / (waveCount - 1)
+    const v = state.smoothedBars[i] || 0
+    const x = startX + i * step
+    const y = waveY - Math.pow(v, 1.45) * h * 0.105 - Math.sin(t * Math.PI * 5.2 + time * 0.0009) * h * 0.005 - bass * h * 0.018
     if (i === 0) ctx.moveTo(x, y)
     else ctx.lineTo(x, y)
   }
+  ctx.strokeStyle = 'rgba(255,150,210,0.5)'
+  ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.0014)
   ctx.stroke()
   ctx.shadowBlur = 0
 }
